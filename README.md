@@ -1,12 +1,18 @@
 # Evolution 0.7.8 for Tibia 7.92
 
 
-This repo contains very old, outdated engine for Tibia 7.92.
-I published it because I was wasting time to looking for it. Maybe somebody will use it or datapacks will use.
+This repo contains a very old, outdated engine for Tibia 7.92.
 
-Server contains all needed files to start, datapacks, map, database schema, sources to compile with dlls and libs.
+I have a lot of good memories from my youth. I always loved the Evolutions
+server and never quite warmed up to TFS (The Forgotten Server). I don't know
+why, it's clearly the better engine. Kids…
 
-I regret to work with it, repair after understand how looks like handling with network, packets sending and threading
+Anyway, I forked this archive from [lambdaforg/evolution078ots](https://github.com/lambdaforg/evolution078ots) and
+used modern technology to bring the nostalgia back to life. I threw some coins
+at **Claude Opus 4.8** and let it fix the toolchain, so you can now enjoy the
+old Evolutions server on modern platforms.
+
+Thanks to my clanker. 😅
 
 ---
 
