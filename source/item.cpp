@@ -890,7 +890,7 @@ uint32_t ItemAttributes::getIntAttr(itemAttrTypes type) const
 		
 	Attribute* attr = getAttr(type);
 	if(attr){
-		return (uint32_t)(long)attr->value;
+		return (uint32_t)(intptr_t)attr->value;
 	}
 	else{
 		return 0;
@@ -915,7 +915,7 @@ void ItemAttributes::increaseIntAttr(itemAttrTypes type, uint32_t value)
 	
 	Attribute* attr = getAttr(type);
 	if(attr){
-		attr->value = (void*)((long)attr->value + value);
+		attr->value = (void*)((intptr_t)attr->value + value);
 	}
 }
 	
