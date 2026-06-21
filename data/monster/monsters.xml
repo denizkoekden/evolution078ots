@@ -44,8 +44,8 @@
 	<monster name="Elder Beholder" file="Elder beholder.xml" />
 	<monster name="Elephant" file="Elephant.xml" />
 	<monster name="Elf" file="Elf.xml" />
-	<monster name="Elf Arcanist" file="Elf arcanist.xml" />
-	<monster name="Elf Scout" file="Elf scout.xml" />
+	<monster name="Elf Arcanist" file="Elf Arcanist.xml" />
+	<monster name="Elf Scout" file="Elf Scout.xml" />
 	<monster name="Fire Devil" file="Fire Devil.xml" />
 	<monster name="Fire Elemental" file="Fire Elemental.xml" />
 	<monster name="Flamingo" file="Flamingo.xml" />
@@ -54,7 +54,7 @@
 	<monster name="Gazer" file="Gazer.xml" />
 	<monster name="Ghost" file="Ghost.xml" />
 	<monster name="Ghoul" file="Ghoul.xml" />
-	<monster name="Giant Spider" file="Giant Spider.xml" />
+	<monster name="Giant Spider" file="Giant spider.xml" />
 	<monster name="Goblin" file="Goblin.xml" />
 	<monster name="Green Djinn" file="Green Djinn.xml" />
 	<monster name="Hero" file="Hero.xml" />
@@ -72,7 +72,7 @@
 	<monster name="Marid" file="Marid.xml" />
 	<monster name="Merlkin" file="Merlkin.xml" />
 	<monster name="Minotaur" file="Minotaur.xml" />
-	<monster name="Minotaur Archer" file="Minotaur Archer.xml" />
+	<monster name="Minotaur Archer" file="Minotaur archer.xml" />
 	<monster name="Minotaur Guard" file="Minotaur Guard.xml" />
 	<monster name="Minotaur Mage" file="Minotaur Mage.xml" />
 	<monster name="Monk" file="Monk.xml" />
@@ -194,7 +194,7 @@
 	<monster name="Morgaroth" file="Morgaroth.xml" />
 	<monster name="Nightmare" file="Nightmare.xml" />
 	<monster name="Phantasm" file="Phantasm.xml" />
-	<monster name="Phantasm summon" file="Phantasm summon.xml" />
+	<monster name="Phantasm summon" file="Phantasm Summon.xml" />
 	<monster name="Plaguesmith" file="Plaguesmith.xml" />
 	<monster name="Spectre" file="Spectre.xml" />
 	<monster name="Undead Dragon" file="Undead Dragon.xml" />

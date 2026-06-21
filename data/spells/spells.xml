@@ -142,7 +142,7 @@
 <instant name="spectre_bubblestatus" words="spectre_bubblestatus" direction="0" enabled="0" script="monsters/spectre_bubblestatus.lua"></instant>
 <instant name="spectre_drunk" words="spectre_drunk" direction="0" enabled="0" script="monsters/spectre_drunk.lua"></instant>
 <instant name="lost_paralyze" words="lost_paralyze" direction="0" enabled="0" script="monsters/lost_paralyze.lua"></instant>
-<instant name="dark music" words="dark music" direction="1" enabled="0" script="monsters/dark music.lua"></instant>
+<instant name="dark music" words="dark music" direction="1" enabled="0" script="monsters/Dark music.lua"></instant>
 <instant name="hydra poisonwave" words="hydra poisonwave" direction="1" enabled="0" script="monsters/hydra poisonwave.lua"></instant>
 <instant name="plague_boom" words="plague_boom" direction="0" enabled="0" script="monsters/plague_boom.lua"></instant>
 <instant name="plague_hur" words="plague_hur" direction="1" enabled="0" script="monsters/plague_hur.lua"></instant>

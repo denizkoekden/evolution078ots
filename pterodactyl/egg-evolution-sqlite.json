@@ -1,0 +1,37 @@
+{
+    "_comment": "Pterodactyl egg — OpenTibia Server Evolution 0.7.8 (modernized), SQLite storage. Self-contained, no external database. Builds from source on install into the server's file area (config.lua + the whole data/ tree are editable via the file manager / SFTP). Common settings are exposed as variables; leaving one blank keeps your edited config.lua value.",
+    "meta": { "version": "PTDL_v2", "update_url": null },
+    "exported_at": "2026-06-21T00:00:00+00:00",
+    "name": "Evolution 0.7.8 (SQLite)",
+    "author": "noreply@github.com",
+    "description": "OpenTibia Server Evolution 0.7.8 for Tibia 7.92, modernized to build on current toolchains. SQLite storage — ready to run, no external database required.",
+    "features": null,
+    "docker_images": { "Debian": "ghcr.io/pterodactyl/yolks:debian" },
+    "file_denylist": [],
+    "startup": "bash start.sh",
+    "config": {
+        "files": "{}",
+        "startup": "{\"done\": \"RPG Running\"}",
+        "logs": "{}",
+        "stop": "^C"
+    },
+    "scripts": {
+        "installation": {
+            "script": "#!/bin/bash\nset -e\nexport DEBIAN_FRONTEND=noninteractive\napt-get update\napt-get install -y --no-install-recommends git ca-certificates cmake ninja-build g++ patchelf \\\n    libxml2-dev libboost-regex-dev libgmp-dev libsqlite3-dev default-libmysqlclient-dev\nrm -rf /tmp/evo\ngit clone --depth 1 --branch \"${GIT_REF}\" https://github.com/denizkoekden/evolution078ots.git /tmp/evo\ncd /tmp/evo\ncmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DSTORAGE=sqlite\ncmake --build build --parallel\ncmake --install build --prefix /mnt/server\ncp pterodactyl/start.sh /mnt/server/start.sh\ncd /mnt/server\nmkdir -p lib\nldd evolutions | awk '/=>/ {print $3}' | while read -r so; do\n  case \"$(basename \"$so\")\" in\n    libc.so*|libm.so*|libpthread.so*|libdl.so*|librt.so*|ld-linux*|libresolv.so*) ;;\n    *) cp -vL \"$so\" lib/ 2>/dev/null || true ;;\n  esac\ndone\npatchelf --set-rpath '$ORIGIN/lib' evolutions\nchmod +x evolutions run.sh start.sh 2>/dev/null || true\necho 'Evolution (SQLite) installed. Demo account: 111111 / tibia'\n",
+            "container": "ghcr.io/pterodactyl/installers:debian",
+            "entrypoint": "bash"
+        }
+    },
+    "variables": [
+        { "name": "Git reference", "description": "Branch or tag to build: bugfixes (crash-hardened, recommended), master (clean 1:1), or a tag like v0.7.8.", "env_variable": "GIT_REF", "default_value": "bugfixes", "user_viewable": true, "user_editable": true, "rules": "required|string|max:64" },
+        { "name": "Public IP", "description": "IP the login server advertises to clients (your node's public IP). Blank keeps config.lua's value.", "env_variable": "PUBLIC_IP", "default_value": "", "user_viewable": true, "user_editable": true, "rules": "nullable|string|max:64" },
+        { "name": "World name", "description": "Shown in the character list. Blank keeps config.lua's value.", "env_variable": "WORLD_NAME", "default_value": "", "user_viewable": true, "user_editable": true, "rules": "nullable|string|max:64" },
+        { "name": "World type", "description": "pvp, no-pvp or pvp-enforced. Blank keeps config.lua's value.", "env_variable": "WORLD_TYPE", "default_value": "", "user_viewable": true, "user_editable": true, "rules": "nullable|string|in:pvp,no-pvp,pvp-enforced" },
+        { "name": "Max players", "description": "0 = unlimited. Blank keeps config.lua's value.", "env_variable": "MAX_PLAYERS", "default_value": "", "user_viewable": true, "user_editable": true, "rules": "nullable|integer|max:100000" },
+        { "name": "Experience rate", "description": "Experience multiplier. Blank keeps config.lua's value.", "env_variable": "RATE_EXP", "default_value": "", "user_viewable": true, "user_editable": true, "rules": "nullable|integer|max:100000" },
+        { "name": "Skill rate", "description": "Skill multiplier. Blank keeps config.lua's value.", "env_variable": "RATE_SKILL", "default_value": "", "user_viewable": true, "user_editable": true, "rules": "nullable|integer|max:100000" },
+        { "name": "Loot rate", "description": "Loot multiplier. Blank keeps config.lua's value.", "env_variable": "RATE_LOOT", "default_value": "", "user_viewable": true, "user_editable": true, "rules": "nullable|integer|max:100000" },
+        { "name": "Magic rate", "description": "Mana/magic multiplier. Blank keeps config.lua's value.", "env_variable": "RATE_MAGIC", "default_value": "", "user_viewable": true, "user_editable": true, "rules": "nullable|integer|max:100000" },
+        { "name": "Spawn rate", "description": "Spawn multiplier. Blank keeps config.lua's value.", "env_variable": "RATE_SPAWN", "default_value": "", "user_viewable": true, "user_editable": true, "rules": "nullable|integer|max:100000" }
+    ]
+}

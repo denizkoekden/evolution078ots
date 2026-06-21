@@ -6,17 +6,17 @@
 datadir = "data/"
 
 -- map location
-map = "data/world/evolutions.otbm"
+map = "data/world/Evolutions.otbm"
 
 -- mapkind
 -- options: OTBM for binary map, XML for OTX map
 mapkind = "OTBM"
 
 -- map store location (for XML only)
-mapstore = "data/world/evolutions-mapstore.xml"
+mapstore = "data/world/Evolutions-mapstore.xml"
 
 -- house store location (for XML only)
-housestore = "data/world/evolutions-housestore.xml"
+housestore = "data/world/Evolutions-housestore.xml"
 
 -- bans storage (for XML only)
 banIdentifier = "data/bans.xml"
@@ -92,6 +92,7 @@ sql_type = "mysql"
 
 --- MySQL part (ignore if you are using SQLite)
 sql_host = "localhost"
+sql_port = 3306
 sql_user = "root"
 sql_pass = ""
 sql_db   = "evolution"

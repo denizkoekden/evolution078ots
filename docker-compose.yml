@@ -1,0 +1,47 @@
+# OpenTibia Evolution 0.7.8 — MySQL stack (server + MariaDB) in one command:
+#
+#   docker compose up --build
+#
+# First start: the DB is created from database.sql (which ships a demo account
+# 111111 / password "tibia"). Connect a Tibia 7.92 client to 127.0.0.1:7171.
+# For remote players, set SERVER_IP to your public/host IP below.
+
+services:
+  db:
+    image: mariadb:11
+    restart: unless-stopped
+    environment:
+      MARIADB_DATABASE: evolution
+      MARIADB_USER: evolution
+      MARIADB_PASSWORD: evolution
+      MARIADB_ROOT_PASSWORD: change-me-root
+    volumes:
+      - ./database.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      - evo-db:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  server:
+    build:
+      context: .
+      args:
+        STORAGE: mysql
+    image: evolution-0.7.8:mysql
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      SQL_HOST: db
+      SQL_USER: evolution
+      SQL_PASS: evolution
+      SQL_DB: evolution
+      SERVER_IP: "127.0.0.1"   # <- set to your public/host IP for remote clients
+    ports:
+      - "7171:7171"   # login + game (this engine serves both on one port)
+
+volumes:
+  evo-db:
