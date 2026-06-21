@@ -21,10 +21,12 @@
 #include <string>
 #include <iostream>
 #include <sstream>
+#include <algorithm>
+#include <cstring>
 
 #include "definitions.h"
-#include "stdafx.h"
 #include "networkmessage.h"
+#include "frontend.h"
 
 
 bool NetworkMessage::m_encryptionEnabled = false;

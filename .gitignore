@@ -3,6 +3,7 @@
 /build-*/
 /dist/
 /cmake-build-*/
+remote control/build*/
 
 # Vendored Lua extraction
 /_vendored/

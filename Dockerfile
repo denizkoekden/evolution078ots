@@ -29,9 +29,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 COPY --from=build --chown=otserv:otserv /opt/evolution /opt/evolution
 COPY --chown=otserv:otserv docker/entrypoint.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh /opt/evolution/evolutions
+COPY --chown=otserv:otserv docker/healthcheck.sh /healthcheck.sh
+RUN chmod +x /entrypoint.sh /healthcheck.sh /opt/evolution/evolutions
 
 WORKDIR /opt/evolution
 USER otserv
-EXPOSE 7171 7172
+EXPOSE 7171
+# Health = the server answers the OpenTibia status query, not just an open port.
+HEALTHCHECK --interval=15s --timeout=5s --start-period=45s --retries=3 CMD /healthcheck.sh
 ENTRYPOINT ["/entrypoint.sh"]
