@@ -263,10 +263,10 @@ std::string str(uint32_t value)
 	return buf;
 }
 
-std::string str(int64_t value)
+std::string str(long long value)
 {
 	char buf[128];
-	snprintf(buf, sizeof(buf), "%lld", (long long)value);
+	snprintf(buf, sizeof(buf), "%lld", value);
 	return buf;
 }
 

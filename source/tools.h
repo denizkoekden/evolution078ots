@@ -60,7 +60,7 @@ std::string str(int value);
 std::string str(long value);
 std::string str(unsigned long value);
 std::string str(uint32_t value);
-std::string str(int64_t value);
+std::string str(long long value);
 std::string tickstr(int ticks);
 
 #endif
