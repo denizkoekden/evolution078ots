@@ -22,6 +22,7 @@
 #include "rsa.h"
 #include "stdio.h"
 #include <string>
+#include <cstring>
 
 RSA* RSA::instance = NULL;
 

@@ -23,19 +23,18 @@
 #include <list>
 #include <sstream>
 #include <string>
+#include <cstring>
+#include <cctype>
 
 #include "commands.h"
 #include "networkmessage.h"
 #include "rsa.h"
-#include "stdafx.h"
-#include "gui.h"
-#include "resource.h"
 #include "definitions.h"
+#include "frontend.h"
 
 extern long next_command_delay;
 extern SOCKET g_socket;
 extern bool g_connected;
-extern HWND hStatusWindow;
 
 bool sendCommand(char commandByte, char* command);
 bool sendMsg(NetworkMessage& msg, uint32_t* key = NULL);

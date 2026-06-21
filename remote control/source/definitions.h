@@ -26,7 +26,15 @@
 
 #if defined WIN32 || defined __WINDOWS__
 
-#include "windows.h"
+// winsock2 must be pulled in before <windows.h> (which would otherwise drag in
+// the legacy winsock.h v1). This also keeps us consistent with wxWidgets, whose
+// MSW headers use winsock2. Link ws2_32 (see CMakeLists).
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#include <winsock2.h>
+#include <ws2tcpip.h>
+#include <windows.h>
 
 #define EWOULDBLOCK WSAEWOULDBLOCK
 
@@ -70,6 +78,12 @@ inline void OTSYS_SLEEP(uint32_t t){
 
 #ifndef SOCKET_ERROR
 #define SOCKET_ERROR -1
+#endif
+
+// The original code reports socket errors via the Win32 WSAGetLastError().
+// On POSIX the equivalent is plain errno.
+#ifndef WSAGetLastError
+#define WSAGetLastError() (errno)
 #endif
 
 inline void OTSYS_SLEEP(int t)

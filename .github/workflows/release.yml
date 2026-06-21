@@ -172,3 +172,114 @@ jobs:
           # Hyphenated tags (e.g. v0.7.9-bugfix) are published as a pre-release so the
           # clean 1:1 v0.7.8 stays the "Latest" release.
           prerelease: ${{ contains(github.ref_name, '-') }}
+
+  ###########################################################################
+  # Remote-Control (OTAdmin) — the admin GUI, modernized to wxWidgets so it
+  # builds and runs natively on all three platforms (was Windows-only Win32).
+  ###########################################################################
+  remote-control:
+    name: remote-control (${{ matrix.label }})
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: ${{ matrix.shell }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-latest,  label: linux,   shell: bash }
+          - { os: macos-latest,   label: macos,   shell: bash }
+          - { os: windows-latest, label: windows, shell: 'msys2 {0}' }
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies (Linux)
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            cmake ninja-build g++ patchelf zip libgmp-dev libwxgtk3.2-dev
+
+      - name: Install dependencies (macOS)
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          brew update
+          brew install ninja gmp wxwidgets dylibbundler || true
+
+      - name: Set up MSYS2 / MinGW-w64 (Windows)
+        if: runner.os == 'Windows'
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: true
+          install: >-
+            zip
+            mingw-w64-x86_64-gcc
+            mingw-w64-x86_64-cmake
+            mingw-w64-x86_64-ninja
+            mingw-w64-x86_64-gmp
+            mingw-w64-x86_64-wxwidgets3.2-msw
+
+      - name: Configure
+        run: cmake -S "remote control" -B build-rc -G Ninja -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: cmake --build build-rc --parallel
+
+      - name: Stage package
+        run: cmake --install build-rc --prefix dist-rc
+
+      # Bundle only wxWidgets + GMP next to the binary (system GTK3 is assumed
+      # present on any desktop Linux); set rpath so they resolve locally.
+      - name: Bundle shared libraries (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          mkdir -p dist-rc/lib
+          ldd dist-rc/Remote-Control | awk '/=>/ {print $3}' \
+            | grep -iE 'libwx|libgmp' | while read -r so; do
+              [ -e "$so" ] && cp -vL "$so" dist-rc/lib/
+            done
+          patchelf --set-rpath '$ORIGIN/lib' dist-rc/Remote-Control
+          printf '#!/bin/sh\ncd "$(dirname "$0")"\nexec ./Remote-Control "$@"\n' > dist-rc/run.sh
+          chmod +x dist-rc/run.sh dist-rc/Remote-Control
+
+      - name: Bundle dylibs (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          dylibbundler -od -b -x dist-rc/Remote-Control -d dist-rc/libs -p @executable_path/libs
+          printf '#!/bin/sh\ncd "$(dirname "$0")"\nexec ./Remote-Control "$@"\n' > dist-rc/run.sh
+          chmod +x dist-rc/run.sh dist-rc/Remote-Control
+
+      - name: Bundle DLLs (Windows / MinGW)
+        if: runner.os == 'Windows'
+        run: |
+          cd dist-rc
+          ldd Remote-Control.exe | awk '/=>/ {print $3}' | grep -iE '/mingw64/' | while read -r dll; do
+            cp -v "$dll" . || true
+          done
+          printf '@echo off\r\ncd /d %%~dp0\r\nstart "" Remote-Control.exe\r\n' > run.bat
+
+      - name: Create zip
+        run: |
+          PKG="evolution-remote-control-0.7.7-${{ matrix.label }}"
+          mv dist-rc "$PKG"
+          zip -r "$PKG.zip" "$PKG"
+          echo "PKG=$PKG" >> "$GITHUB_ENV"
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.PKG }}
+          path: ${{ env.PKG }}.zip
+          if-no-files-found: error
+
+      - name: Attach to GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ env.PKG }}.zip
+          fail_on_unmatched_files: true
+          prerelease: ${{ contains(github.ref_name, '-') }}
