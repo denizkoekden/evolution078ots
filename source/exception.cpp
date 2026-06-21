@@ -40,13 +40,20 @@ typedef std::map<unsigned long, char*> FunctionMap;
 #include "tlhelp32.h"
 #endif
 
+// The Win32 SEH stack tracer below is 32-bit x86 + MinGW-GCC only (FS:0 SEH chain,
+// EAX/EBP/ESP registers). It is only ever used under __EXCEPTION_TRACER__ (undefined
+// here); on x86_64 / MSVC / non-Windows it compiles out to no-ops.
+#if (defined(WIN32) || defined(__WINDOWS__)) && defined(__GNUC__) && defined(__i386__)
+	#define OTSERV_X86_SEH 1
+#endif
+
 unsigned long max_off;
 unsigned long min_off;
 FunctionMap functionMap;
 bool maploaded = false;
 OTSYS_THREAD_LOCKVAR maploadlock;
 
-#if defined WIN32 || defined __WINDOWS__
+#ifdef OTSERV_X86_SEH
 EXCEPTION_DISPOSITION
  __cdecl _SEHHandler(
      struct _EXCEPTION_RECORD *ExceptionRecord,
@@ -89,7 +96,7 @@ bool ExceptionHandler::InstallHandler(){
 		lea eax,[chain]
 		mov fs:[0],eax
 	*/
-	#ifdef __GNUC__
+	#ifdef OTSERV_X86_SEH
 	SEHChain *prevSEH;
 	__asm__ ("movl %%fs:0,%%eax;movl %%eax,%0;":"=r"(prevSEH)::"%eax" );
 	chain.prev = prevSEH;
@@ -110,7 +117,7 @@ bool ExceptionHandler::RemoveHandler(){
 		mov eax,[chain.prev]
 		mov fs:[0],eax
 	*/
-	#ifdef __GNUC__
+	#ifdef OTSERV_X86_SEH
 	__asm__ ("movl %0,%%eax;movl %%eax,%%fs:0;"::"r"(chain.prev):"%eax" );
 	#endif //__GNUC__
 	#endif //WIN32 || defined __WINDOWS__
@@ -118,7 +125,7 @@ bool ExceptionHandler::RemoveHandler(){
 	return true;
 }
 
-#if defined WIN32 || defined __WINDOWS__
+#ifdef OTSERV_X86_SEH
 EXCEPTION_DISPOSITION
  __cdecl _SEHHandler(
      struct _EXCEPTION_RECORD *ExceptionRecord,
@@ -395,12 +402,9 @@ void ExceptionHandler::dumpStack()
 	// Win32 SEH + x86 inline asm + VirtualQuery; only meaningful on a MinGW-GCC
 	// Windows build (MSVC returned early in the original). No-op everywhere else.
 	// (Only ever reached under __EXCEPTION_TRACER__, which this build doesn't define.)
-	#if !defined(WIN32) && !defined(__WINDOWS__)
+	#ifndef OTSERV_X86_SEH
 	return;
 	#else
-	#ifndef __GNUC__
-	return;
-	#endif
 
 	unsigned long *esp;
 	unsigned long *next_ret;
