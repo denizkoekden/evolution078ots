@@ -31,7 +31,7 @@ class IOPlayerSQL : protected IOPlayer{
 public:
 	/** Get a textual description of what source is used
 	* \returns Name of the source*/
-	virtual char* getSourceDescription(){return "Player source: SQL";};
+	virtual const char* getSourceDescription(){return "Player source: SQL";};
 	virtual bool loadPlayer(Player* player, std::string name);
 
 	/** Save a player

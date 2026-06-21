@@ -474,7 +474,7 @@ bool Commands::banPlayer(Creature* creature, const std::string& cmd, const std::
         }
         
         char buffer[4];
-        itoa (bantime, buffer, 10);
+        snprintf(buffer, sizeof(buffer), "%d", bantime); // was itoa (MSVC/MinGW-only)
         bantime = (bantime * 86400);
         if(param.find(",") && bantime > 0){
             g_bans.addPlayerBan(banPlayer->getName(), std::time(NULL) + bantime, "nothing");

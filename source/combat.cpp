@@ -933,7 +933,10 @@ bool AreaCombat::getList(const Position& centerPos, const Position& targetPos, s
 	return true;
 }
 
-long round(float v)
+// Renamed from round() to avoid clashing with C99 ::round (declared by modern
+// <cmath>/<math.h>). Behaviour is intentionally kept: rounds half DOWN at exactly .5
+// (std::round rounds half away from zero), so it is NOT replaced by std::round.
+long combatRound(float v)
 {
 	long t = (long)std::floor(v);
 	if((v - t) > 0.5){
@@ -1018,8 +1021,8 @@ void AreaCombat::copyArea(const MatrixArea* input, MatrixArea* output, MatrixOpe
 				long newY = y - centerY;
 
 				//perform rotation
-				long rotatedX = round(newX * a + newY * b);
-				long rotatedY = round(newX * c + newY * d);
+				long rotatedX = combatRound(newX * a + newY * b);
+				long rotatedY = combatRound(newX * c + newY * d);
 
 				//write in the output matrix using rotated coordinates
 				(*output)[rotatedY + rotateCenterY][rotatedX + rotateCenterX] = (*input)[y][x];

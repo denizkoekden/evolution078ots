@@ -21,6 +21,8 @@
 #ifndef __OTSERV_ENUMS_H__
 #define __OTSERV_ENUMS_H__
 
+#include <cstdint> // int64_t in Stage_t (was __int64, formerly pulled in transitively)
+
 enum RaceType_t {
 	RACE_NONE		= 0,
 	RACE_VENOM  = 1,
@@ -198,7 +200,7 @@ struct Death
 #ifdef __XID_EXPERIENCE_STAGES__
 struct Stage_t
 {
-	__int64 minLv, maxLv, expMul;
+	int64_t minLv, maxLv, expMul;
 };
 #endif
 

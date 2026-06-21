@@ -28,18 +28,22 @@
 
 #include <list>
 #include <algorithm>
+#include <chrono>   // portable OTSYS_TIME (replaces _ftime/ftime, removed on modern glibc/macOS)
 
 #if defined WIN32 || defined __WINDOWS__
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN     // keep <windows.h> from pulling in the old <winsock.h>
+#endif
 #ifdef __WIN_LOW_FRAG_HEAP__
 #define _WIN32_WINNT 0x0501
 #endif
+#include <winsock2.h>   /* must be included before <windows.h> */
+#include <ws2tcpip.h>
 #include <windows.h>
 #include <process.h>    /* _beginthread, _endthread */
 #include <stddef.h>
 #include <stdlib.h>
 #include <conio.h>
-#include <sys/timeb.h>
-#include <winsock.h>
 
 #define OTSYS_CREATE_THREAD(a, b) _beginthread(a, 0, b)
 
@@ -80,9 +84,9 @@ typedef HANDLE OTSYS_THREAD_SIGNALVAR;
 
 inline int64_t OTSYS_TIME()
 {
-  _timeb t;
-  _ftime(&t);
-  return ((int64_t)t.millitm) + ((int64_t)t.time) * 1000;
+  // wall-clock milliseconds since the Unix epoch (was _ftime/_timeb: millitm + time*1000)
+  return (int64_t)std::chrono::duration_cast<std::chrono::milliseconds>(
+    std::chrono::system_clock::now().time_since_epoch()).count();
 }
 
 inline int OTSYS_THREAD_WAITSIGNAL(OTSYS_THREAD_SIGNALVAR& signal, OTSYS_THREAD_LOCKVAR& lock)
@@ -152,7 +156,6 @@ inline void SOCKET_PERROR(const char* a)
 #include <semaphore.h>
 #include <time.h>
 #include <sys/types.h>
-#include <sys/timeb.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
@@ -202,9 +205,9 @@ inline void OTSYS_SLEEP(int t)
 
 inline int64_t OTSYS_TIME()
 {
-  timeb t;
-  ftime(&t);
-  return ((int64_t)t.millitm) + ((int64_t)t.time) * 1000;
+  // wall-clock milliseconds since the Unix epoch (was ftime/timeb: millitm + time*1000)
+  return (int64_t)std::chrono::duration_cast<std::chrono::milliseconds>(
+    std::chrono::system_clock::now().time_since_epoch()).count();
 }
 
 #define OTSYS_THREAD_WAITSIGNAL(a,b) pthread_cond_wait(&a, &b)

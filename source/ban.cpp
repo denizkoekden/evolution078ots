@@ -301,7 +301,7 @@ std::string Ban::getReason(const std::string& name)
 	OTSYS_THREAD_LOCK_CLASS lockClass(banLock);
 	std::string playerName = name;
 	if(!IOPlayer::instance()->playerExists(playerName)){
-		return false;
+		return ""; // was `return false;` -> std::string(NULL) (UB) under old C++; intent is empty
 	}
 	
 	for(PlayerBanList::iterator it = playerBanList.begin(); it !=  playerBanList.end(); ++it){

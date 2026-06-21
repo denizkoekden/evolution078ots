@@ -23,14 +23,14 @@
 
 #ifdef WIN32
 //#include <winsock2.h>
-#include <winsock.h>
+#include <winsock2.h>
 #endif
 
 #include <sqlite3.h>
 #include <sstream>
 #include "database.h"
 
-class DatabaseSqLite : protected _Database
+class DatabaseSqLite : public _Database // was `protected` (typo); DatabaseMySQL uses public. SQLite path was never compiled in the original MySQL-only build, hiding this.
 {
 public:
 	DatabaseSqLite();

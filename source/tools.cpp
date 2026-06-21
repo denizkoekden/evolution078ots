@@ -23,10 +23,11 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <sys/timeb.h>
 #include <string>
 #include <cmath>
 #include <sstream>
+#include <chrono>   // portable replacement for _ftime/_timeb in timer()
+#include <cstdint>
 
 bool fileExists(const char* filename)
 {
@@ -124,7 +125,7 @@ void hexdump(unsigned char *_data, int _len) {
 		
 		fprintf(stderr, " ");
 		for(i = 0; i < 16 && i < _len; i++)
-			fprintf(stderr, "%c", (_data[i] & 0x70) < 32 ? '·' : _data[i]);
+			fprintf(stderr, "%c", (_data[i] & 0x70) < 32 ? '.' : _data[i]);
 		
 		fprintf(stderr, "\n");
 	}
@@ -134,70 +135,15 @@ void hexdump(unsigned char *_data, int _len) {
 char upchar(char c) {
   if (c >= 'a' && c <= 'z')
       return c - 'a' + 'A';
-  else if (c == 'à')
-      return 'À';
-  else if (c == 'á')
-      return 'Á';
-  else if (c == 'â')
-      return 'Â';
-  else if (c == 'ã')
-      return 'Ã';
-  else if (c == 'ä')
-      return 'Ä';
-  else if (c == 'å')
-      return 'Å';
-  else if (c == 'æ')
-      return 'Æ';
-  else if (c == 'ç')
-      return 'Ç';
-  else if (c == 'è')
-      return 'È';
-  else if (c == 'é')
-      return 'É';
-  else if (c == 'ê')
-      return 'Ê';
-  else if (c == 'ë')
-      return 'Ë';
-  else if (c == 'ì')
-      return 'Ì';
-  else if (c == 'í')
-      return 'Í';
-  else if (c == 'î')
-      return 'Î';
-  else if (c == 'ï')
-      return 'Ï';
-  else if (c == 'ð')
-      return 'Ð';
-  else if (c == 'ñ')
-      return 'Ñ';
-  else if (c == 'ò')
-      return 'Ò';
-  else if (c == 'ó')
-      return 'Ó';
-  else if (c == 'ô')
-      return 'Ô';
-  else if (c == 'õ')
-      return 'Õ';
-  else if (c == 'ö')
-      return 'Ö';
-  else if (c == 'ø')
-      return 'Ø';
-  else if (c == 'ù')
-      return 'Ù';
-  else if (c == 'ú')
-      return 'Ú';
-  else if (c == 'û')
-      return 'Û';
-  else if (c == 'ü')
-      return 'Ü';
-  else if (c == 'ý')
-      return 'Ý';
-  else if (c == 'þ')
-      return 'Þ';
-  else if (c == 'ÿ')
-      return 'ß';
-  else
-      return c;
+  // Latin-1 / CP1252 accented lowercase -> uppercase. The archived source had
+  // these high bytes corrupted to U+FFFD (all branches collapsed to one value);
+  // this restores the original Evolution mapping. See also the project notes.
+  unsigned char uc = (unsigned char)c;
+  if (uc >= 0xE0 && uc <= 0xFE && uc != 0xF7) // a-grave .. thorn, excluding division sign
+      return (char)(uc - 0x20);
+  if (uc == 0xFF)                             // y-diaeresis -> Y-diaeresis (CP1252 0x9F)
+      return (char)0x9F;
+  return c;
 }
 
 std::string urlEncode(const std::string& str)
@@ -249,20 +195,22 @@ void formatIP(uint32_t ip, char* buffer)
 
 double timer()
 {
+	// Original used _ftime/_timeb (MSVC/MinGW only, removed on modern macOS/glibc).
+	// std::chrono reproduces the same "elapsed seconds between alternating calls".
 	static bool running = false;
-	static _timeb start, end;
+	static std::chrono::steady_clock::time_point start;
 
 	if (!running)
 	{
-		_ftime(&start);
+		start = std::chrono::steady_clock::now();
 		running = true;
 		return 0.0;
 	}
 	else
 	{
-		_ftime(&end);
+		std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
 		running = false;
-		return (end.time-start.time)+(end.millitm-start.millitm)/1000.0;
+		return std::chrono::duration<double>(end - start).count();
 	}
 }
 
@@ -284,34 +232,42 @@ std::string article(const std::string& name)
 	}
 }
 
+// The original used the MSVC/MinGW-only itoa/ltoa/_ultoa/_i64toa with base 10.
+// snprintf with the matching decimal conversion yields byte-for-byte identical
+// strings on every platform.
 std::string str(int value)
 {
 	char buf[64];
-	return itoa(value, buf, 10);
+	snprintf(buf, sizeof(buf), "%d", value);
+	return buf;
 }
 
 std::string str(long value)
 {
 	char buf[64];
-	return ltoa(value, buf, 10);
+	snprintf(buf, sizeof(buf), "%ld", value);
+	return buf;
 }
 
 std::string str(unsigned long value)
 {
 	char buf[64];
-	return _ultoa(value, buf, 10);
+	snprintf(buf, sizeof(buf), "%lu", value);
+	return buf;
 }
 
 std::string str(uint32_t value)
 {
 	char buf[64];
-	return _ultoa(value, buf, 10);
+	snprintf(buf, sizeof(buf), "%lu", (unsigned long)value);
+	return buf;
 }
 
-std::string str(__int64 value)
+std::string str(int64_t value)
 {
 	char buf[128];
-	return _i64toa(value, buf, 10);
+	snprintf(buf, sizeof(buf), "%lld", (long long)value);
+	return buf;
 }
 
 std::string tickstr(int ticks)

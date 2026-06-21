@@ -8,6 +8,37 @@ Server contains all needed files to start, datapacks, map, database schema, sour
 
 I regret to work with it, repair after understand how looks like handling with network, packets sending and threading
 
+---
+
+## Modernized build (Windows / Linux / macOS)
+
+The original sources only built with Dev-C++ / MinGW (Windows). They now build
+unchanged-in-behaviour with modern GCC / Clang / MSVC via **CMake**, with Lua 5.1
+vendored from this repo. See **[MODERNIZATION.md](MODERNIZATION.md)** for the full
+list of changes, assumptions, and the fixed pre-existing bugs.
+
+### Quick start
+
+```bash
+# Linux  : sudo apt install cmake g++ libxml2-dev libboost-regex-dev libgmp-dev libsqlite3-dev
+# macOS  : brew install cmake boost gmp libxml2 sqlite
+# Windows: vcpkg install libxml2 boost-regex gmp sqlite3 --triplet x64-windows-static
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DSTORAGE=sqlite
+cmake --build build --parallel
+cmake --install build --prefix dist     # ready-to-run server folder
+cd dist && ./evolutions                 # reads ./config.lua and ./data, listens on 7171
+```
+
+`-DSTORAGE=` selects the backend: `sqlite` (default, self-contained), `mysql`
+(original 1:1, needs a server), `mysql+sqlite` (runtime choice), or `xml`
+(nostalgic file-based storage). Pushing a `v*` tag builds self-contained `.zip`
+packages for all three OSes via GitHub Actions (`.github/workflows/release.yml`).
+
+> The original engine has several known crash bugs listed below; they are
+> **behaviour-preserved** by the modernization (not silently changed). Two crash
+> bugs that the old MSVC runtime hid by luck were fixed because they are
+> deterministic on modern toolchains (see MODERNIZATION.md §4).
+
 
 # Crash, bugs
 

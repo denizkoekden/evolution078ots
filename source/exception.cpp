@@ -392,10 +392,16 @@ bool ExceptionHandler::LoadMap(){
 
 void ExceptionHandler::dumpStack()
 {
+	// Win32 SEH + x86 inline asm + VirtualQuery; only meaningful on a MinGW-GCC
+	// Windows build (MSVC returned early in the original). No-op everywhere else.
+	// (Only ever reached under __EXCEPTION_TRACER__, which this build doesn't define.)
+	#if !defined(WIN32) && !defined(__WINDOWS__)
+	return;
+	#else
 	#ifndef __GNUC__
 	return;
 	#endif
-	
+
 	unsigned long *esp;
 	unsigned long *next_ret;
 	unsigned long stack_val;
@@ -474,4 +480,5 @@ void ExceptionHandler::dumpStack()
 	}
 	output << "*****************************************************" << std::endl;
 	output.close();
+	#endif // WIN32 || __WINDOWS__
 }

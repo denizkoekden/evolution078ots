@@ -89,67 +89,52 @@ extern ConfigManager g_config;
 
 #define ipText(a) (unsigned int)a[0] << "." << (unsigned int)a[1] << "." << (unsigned int)a[2] << "." << (unsigned int)a[3]
 
+// Fixed-width integer types — portable replacement for the original hand-rolled
+// typedefs (typedef __int64 int64_t; typedef unsigned long uint32_t; ...) that
+// only worked on the 2007 MinGW/MSVC toolchains. <cstdint> yields the exact same
+// widths on every modern toolchain.
+#include <cstdint>
+
+// assert() was reached transitively through the old toolchain's headers in many
+// TUs; modern libstdc++/libc++ no longer leak it. definitions.h is included almost
+// everywhere, so pull it in once here (behaviour-neutral).
+#include <cassert>
+
+// Hash containers — the original used GCC's __gnu_cxx::hash_map / hash_set (via
+// <ext/hash_map>) and MSVC's stdext::hash_map, both removed or hard-deprecated on
+// modern compilers. std::unordered_map/set has the same average-O(1) find/insert/
+// iterate semantics; no call site here depends on iteration order, so this is a
+// 1:1 behavioural swap.
+#include <unordered_map>
+#include <unordered_set>
+#define OTSERV_HASH_MAP std::unordered_map
+#define OTSERV_HASH_SET std::unordered_set
+
 #if defined __WINDOWS__ || defined WIN32
 
-#ifndef __FUNCTION__
-	#define	__FUNCTION__ __func__
-#endif
-
-#define OTSYS_THREAD_RETURN  void
-#define EWOULDBLOCK WSAEWOULDBLOCK
-
-#ifdef __GNUC__
-	#include <ext/hash_map>
-	#include <ext/hash_set>
-	#define OTSERV_HASH_MAP __gnu_cxx::hash_map
-	#define OTSERV_HASH_SET __gnu_cxx::hash_set
-
-#else
-	typedef unsigned long long uint64_t;
-
-	#ifndef NOMINMAX
-		#define NOMINMAX
+	#ifndef __FUNCTION__
+		#define	__FUNCTION__ __func__
 	#endif
 
-	#include <hash_map>
-	#include <hash_set>
-	#include <limits>
-	#include <time.h>
-	
-	#define OTSERV_HASH_MAP stdext::hash_map
-	#define OTSERV_HASH_SET stdext::hash_set
+	#define OTSYS_THREAD_RETURN  void
+	#define EWOULDBLOCK WSAEWOULDBLOCK
 
-	#include <cstring>
-	inline int strcasecmp(const char *s1, const char *s2)
-	{
-		return ::_stricmp(s1, s2);
-	}
+	#ifdef _MSC_VER
+		#include <cstring>
+		inline int strcasecmp(const char *s1, const char *s2)
+		{
+			return ::_stricmp(s1, s2);
+		}
 
-	typedef __int64 int64_t;
-	typedef unsigned long uint32_t;
-	typedef signed long int32_t;
-	typedef unsigned short uint16_t;
-	typedef signed short int16_t;
-	typedef unsigned char uint8_t;
-
-	#pragma warning(disable:4786) // msvc too long debug names in stl
-	#pragma warning(disable:4250) // 'class1' : inherits 'class2::member' via dominance
-
-#endif
+		#pragma warning(disable:4786) // msvc too long debug names in stl
+		#pragma warning(disable:4250) // 'class1' : inherits 'class2::member' via dominance
+	#endif
 
 //*nix systems
 #else
 	#define OTSYS_THREAD_RETURN void*
 
-	#include <stdint.h>
 	#include <string.h>
-	#include <ext/hash_map>
-	#include <ext/hash_set>
-
-	#define OTSERV_HASH_MAP __gnu_cxx::hash_map
-	#define OTSERV_HASH_SET __gnu_cxx::hash_set
-	typedef int64_t int64_t;
-
 #endif
 
 #endif

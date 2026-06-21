@@ -1,0 +1,183 @@
+name: build & release
+
+# Builds the modernized OTServ Evolution 0.7.8 for Windows, Linux and macOS,
+# bundles all runtime dependencies into self-contained ("download & run") .zip
+# packages, and — on a version tag (v*) — publishes them as a GitHub Release.
+#
+# Storage backends (CMake -DSTORAGE=):
+#   sqlite  -> default, self-contained (bundled db.s3db)
+#   xml     -> nostalgic file-based storage, self-contained
+#   mysql   -> needs an external MySQL/MariaDB server (database.sql shipped)
+
+on:
+  push:
+    branches: [ master ]
+    tags: [ 'v*' ]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write   # needed for creating the Release on tags
+
+jobs:
+  build:
+    name: ${{ matrix.label }} (${{ matrix.storage }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-latest,  label: linux,   storage: sqlite }
+          - { os: ubuntu-latest,  label: linux,   storage: xml }
+          - { os: ubuntu-latest,  label: linux,   storage: mysql }
+          - { os: macos-latest,   label: macos,   storage: sqlite }
+          - { os: macos-latest,   label: macos,   storage: xml }
+          - { os: macos-latest,   label: macos,   storage: mysql }
+          - { os: windows-latest, label: windows, storage: sqlite }
+          - { os: windows-latest, label: windows, storage: xml }
+          - { os: windows-latest, label: windows, storage: mysql }
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # ---------------------------------------------------------------- Linux
+      - name: Install dependencies (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            cmake ninja-build g++ patchelf zip \
+            libxml2-dev libboost-regex-dev libgmp-dev libsqlite3-dev \
+            default-libmysqlclient-dev
+
+      # --------------------------------------------------------------- macOS
+      - name: Install dependencies (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          brew update
+          brew install ninja boost gmp libxml2 sqlite mysql-client dylibbundler || true
+
+      # ------------------------------------------------------------- Windows
+      - name: Install dependencies (Windows / vcpkg, static)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          vcpkg install libxml2 boost-regex gmp sqlite3 libmysql --triplet x64-windows-static
+        env:
+          VCPKG_DEFAULT_TRIPLET: x64-windows-static
+
+      # ------------------------------------------------------------ Configure
+      - name: Configure (Linux/macOS)
+        if: runner.os != 'Windows'
+        run: |
+          cmake -S . -B build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DSTORAGE=${{ matrix.storage }}
+
+      - name: Configure (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          cmake -S . -B build `
+            -DCMAKE_BUILD_TYPE=Release `
+            -DSTORAGE=${{ matrix.storage }} `
+            -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake" `
+            -DVCPKG_TARGET_TRIPLET=x64-windows-static `
+            -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded
+
+      # --------------------------------------------------------------- Build
+      - name: Build
+        run: cmake --build build --config Release --parallel
+
+      # ------------------------------------------------------------- Install
+      - name: Stage package
+        run: cmake --install build --config Release --prefix dist
+
+      # --------------------------------------------------- Bundle deps: Linux
+      - name: Bundle shared libraries (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          mkdir -p dist/lib
+          # ldd prints the full transitive set; bundle everything except the
+          # ABI-stable glibc core so the package runs on any modern glibc distro.
+          ldd dist/evolutions | awk '/=>/ {print $3}' | while read -r so; do
+            [ -e "$so" ] || continue
+            case "$(basename "$so")" in
+              libc.so*|libm.so*|libpthread.so*|libdl.so*|librt.so*|ld-linux*|libresolv.so*) ;;
+              *) cp -vL "$so" dist/lib/ ;;
+            esac
+          done
+          patchelf --set-rpath '$ORIGIN/lib' dist/evolutions
+          printf '#!/bin/sh\ncd "$(dirname "$0")"\nexec ./evolutions "$@"\n' > dist/run.sh
+          chmod +x dist/run.sh dist/evolutions
+
+      # --------------------------------------------------- Bundle deps: macOS
+      - name: Bundle dylibs (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          dylibbundler -od -b -x dist/evolutions -d dist/libs -p @executable_path/libs
+          printf '#!/bin/sh\ncd "$(dirname "$0")"\nexec ./evolutions "$@"\n' > dist/run.sh
+          chmod +x dist/run.sh dist/evolutions
+
+      # ------------------------------------------------- Windows: launcher
+      - name: Add launcher (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          "@echo off`r`ncd /d %~dp0`r`nevolutions.exe %*`r`npause" | Out-File -Encoding ascii dist/run.bat
+
+      # ------------------------------------------------------- README in zip
+      - name: Add package README
+        shell: bash
+        run: |
+          cat > dist/README-PACKAGE.txt <<EOF
+          OpenTibia Server - Evolution 0.7.8 (modernized)
+          Platform: ${{ matrix.label }}   Storage backend: ${{ matrix.storage }}
+
+          HOW TO RUN
+            Windows : double-click run.bat (or evolutions.exe)
+            Linux   : ./run.sh   (or ./evolutions)
+            macOS   : ./run.sh   (or ./evolutions)   [right-click > Open the first time]
+
+          The server reads ./config.lua and the ./data folder from this directory.
+          Default login/game port: 7171 / 7172.
+
+          STORAGE = ${{ matrix.storage }}
+            sqlite : ready to run, uses the bundled db.s3db
+            xml    : ready to run, file-based storage under data/
+            mysql  : needs a running MySQL/MariaDB server; import database.sql and
+                     set sql_host/sql_user/sql_pass/sql_db in config.lua
+          EOF
+
+      # ------------------------------------------------------------- Package
+      - name: Create zip (Linux/macOS)
+        if: runner.os != 'Windows'
+        run: |
+          PKG="evolution-0.7.8-${{ matrix.label }}-${{ matrix.storage }}"
+          mv dist "$PKG"
+          zip -r "$PKG.zip" "$PKG"
+          echo "PKG=$PKG" >> "$GITHUB_ENV"
+
+      - name: Create zip (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $pkg = "evolution-0.7.8-${{ matrix.label }}-${{ matrix.storage }}"
+          Rename-Item dist $pkg
+          Compress-Archive -Path $pkg -DestinationPath "$pkg.zip"
+          "PKG=$pkg" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding ascii
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.PKG }}
+          path: ${{ env.PKG }}.zip
+          if-no-files-found: error
+
+      # ---------------------------------------------------- Release (on tag)
+      - name: Attach to GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ env.PKG }}.zip
+          fail_on_unmatched_files: true
