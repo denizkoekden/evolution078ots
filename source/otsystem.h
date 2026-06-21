@@ -45,6 +45,10 @@
 #include <stdlib.h>
 #include <conio.h>
 
+// Winsock error returned by recv/send for a non-blocking socket with no data.
+// (Not the C errno EWOULDBLOCK — redefining that macro breaks modern libstdc++.)
+#define OTSYS_EWOULDBLOCK WSAEWOULDBLOCK
+
 #define OTSYS_CREATE_THREAD(a, b) _beginthread(a, 0, b)
 
 #ifndef __DEBUG_CRITICALSECTION__
@@ -228,6 +232,8 @@ inline int OTSYS_THREAD_WAITSIGNAL_TIMED(OTSYS_THREAD_SIGNALVAR& signal, OTSYS_T
 #ifndef closesocket
 #define closesocket close
 #endif
+
+#define OTSYS_EWOULDBLOCK EWOULDBLOCK
 
 #define PERROR(a) perror(a)
 #define SOCKET_PERROR(a) perror(a)

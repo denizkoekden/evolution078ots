@@ -75,7 +75,7 @@ bool NetworkMessage::ReadFromSocket(SOCKET socket)
 		int errnum;
 #if defined WIN32 || defined __WINDOWS__
 		errnum = ::WSAGetLastError();
-		if(errnum == EWOULDBLOCK){
+		if(errnum == OTSYS_EWOULDBLOCK){
 			m_MsgSize = 0;
 			return true;
 		}
@@ -160,7 +160,7 @@ bool NetworkMessage::WriteToSocket(SOCKET socket)
 		if(b <= 0){
 #if defined WIN32 || defined __WINDOWS__
 			int errnum = ::WSAGetLastError();
-			if(errnum == EWOULDBLOCK){
+			if(errnum == OTSYS_EWOULDBLOCK){
 				b = 0;
 				OTSYS_SLEEP(10);
 				retry++;

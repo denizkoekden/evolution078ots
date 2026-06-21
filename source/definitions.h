@@ -117,7 +117,6 @@ extern ConfigManager g_config;
 	#endif
 
 	#define OTSYS_THREAD_RETURN  void
-	#define EWOULDBLOCK WSAEWOULDBLOCK
 
 	#ifdef _MSC_VER
 		#include <cstring>
