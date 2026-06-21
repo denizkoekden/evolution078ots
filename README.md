@@ -34,6 +34,23 @@ cd dist && ./evolutions                 # reads ./config.lua and ./data, listens
 (nostalgic file-based storage). Pushing a `v*` tag builds self-contained `.zip`
 packages for all three OSes via GitHub Actions (`.github/workflows/release.yml`).
 
+### Remote-Control (admin GUI)
+
+The bundled admin tool in `remote control/` (originally Windows-only Win32) was
+modernized to **wxWidgets** so it builds and runs natively on Windows, Linux and
+macOS too, with the admin protocol and all commands kept 1:1. It builds the same
+way and ships as its own per-OS zip (CI job `remote-control`):
+
+```bash
+# Linux  : sudo apt install cmake g++ libgmp-dev libwxgtk3.2-dev
+# macOS  : brew install cmake gmp wxwidgets
+# Windows: MSYS2/MinGW64 -> pacman -S mingw-w64-x86_64-{gcc,cmake,ninja,gmp,wxwidgets3.2-msw}
+cmake -S "remote control" -B build-rc -DCMAKE_BUILD_TYPE=Release
+cmake --build build-rc --parallel
+```
+
+See **[MODERNIZATION.md](MODERNIZATION.md) §7** for the details.
+
 > The original engine has several known crash bugs listed below; they are
 > **behaviour-preserved** by the modernization (not silently changed). Two crash
 > bugs that the old MSVC runtime hid by luck were fixed because they are
