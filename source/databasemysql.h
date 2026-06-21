@@ -87,8 +87,9 @@ private:
 	bool m_initialized;
 	bool m_connected;
 	MYSQL m_handle;
-	
+
 	std::string m_host, m_user, m_pass, m_dbname;
+	unsigned int m_port;
 };
 
 

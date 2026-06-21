@@ -36,7 +36,8 @@ DatabaseMySQL::DatabaseMySQL()
 	m_user   = g_config.getString(ConfigManager::SQL_USER);
 	m_pass   = g_config.getString(ConfigManager::SQL_PASS);
 	m_dbname = g_config.getString(ConfigManager::SQL_DB);
-	
+	m_port   = (unsigned int)g_config.getNumber(ConfigManager::SQL_PORT);
+
 	init();
 }
 
@@ -71,7 +72,7 @@ bool DatabaseMySQL::connect()
 	}
 	
 	// Connect to the DatabaseMySQL host
-	if(!mysql_real_connect(&m_handle, m_host.c_str(), m_user.c_str(), m_pass.c_str(), NULL, 0, NULL, 0))
+	if(!mysql_real_connect(&m_handle, m_host.c_str(), m_user.c_str(), m_pass.c_str(), NULL, m_port, NULL, 0))
 	{
 		std::cout << "MYSQL ERROR mysql_real_connect: " << mysql_error(&m_handle)  << std::endl;
 		return false;

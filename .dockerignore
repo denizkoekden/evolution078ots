@@ -1,0 +1,19 @@
+# Keep the build context small. Note: source/libraries/lua-5.1.tar.gz (vendored
+# Lua, needed by the build) and source/db.s3db (sqlite seed) are intentionally kept.
+.git
+.github
+build/
+build-*/
+dist/
+cmake-build-*/
+_vendored/
+*.zip
+*.dll
+*.exe
+remote control/
+documentation/
+source/libraries/*.DevPak
+source/libraries/lua-5.0.2-2gs.DevPak
+source/libraries/luaplus-5.0_build_1082.DevPak
+source/dev-C++/*.res
+.DS_Store
