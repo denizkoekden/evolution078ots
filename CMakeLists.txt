@@ -223,7 +223,9 @@ endif()
 # --- SQLite (optional) ------------------------------------------------------
 if(USE_SQLITE)
     find_package(SQLite3 REQUIRED)
-    target_link_libraries(evolutions PRIVATE SQLite3::SQLite3)
+    # Use the long-standing target name SQLite::SQLite3 (present on every CMake that
+    # ships FindSQLite3; the SQLite3::SQLite3 alias only exists on very new CMake).
+    target_link_libraries(evolutions PRIVATE SQLite::SQLite3)
 endif()
 
 # --- MySQL / MariaDB client (optional) --------------------------------------

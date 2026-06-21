@@ -26,6 +26,7 @@
 #include "enums.h"
 
 #include <list>
+#include <vector> // std::vector (was pulled in transitively by libc++, not by libstdc++)
 #include <libxml/xmlmemory.h>
 #include <libxml/parser.h>
 
