@@ -1,0 +1,170 @@
+name: build & release
+
+# Builds the modernized OTServ Evolution 0.7.8 for Windows, Linux and macOS,
+# bundles all runtime dependencies into self-contained ("download & run") .zip
+# packages, and — on a version tag (v*) — publishes them as a GitHub Release.
+#
+# Toolchains: Linux = GCC, macOS = Clang, Windows = MinGW-w64 (MSYS2) — the modern
+# successor of the original Dev-C++ MinGW build. Storage backends via -DSTORAGE=.
+
+on:
+  push:
+    branches: [ master ]
+    tags: [ 'v*' ]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write   # needed for creating the Release on tags
+
+jobs:
+  build:
+    name: ${{ matrix.label }} (${{ matrix.storage }})
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: ${{ matrix.shell }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-latest,  label: linux,   storage: sqlite, shell: bash }
+          - { os: ubuntu-latest,  label: linux,   storage: xml,    shell: bash }
+          - { os: ubuntu-latest,  label: linux,   storage: mysql,  shell: bash }
+          - { os: macos-latest,   label: macos,   storage: sqlite, shell: bash }
+          - { os: macos-latest,   label: macos,   storage: xml,    shell: bash }
+          - { os: macos-latest,   label: macos,   storage: mysql,  shell: bash }
+          - { os: windows-latest, label: windows, storage: sqlite, shell: 'msys2 {0}' }
+          - { os: windows-latest, label: windows, storage: xml,    shell: 'msys2 {0}' }
+          - { os: windows-latest, label: windows, storage: mysql,  shell: 'msys2 {0}' }
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # --------------------------------------------------------- deps: Linux
+      - name: Install dependencies (Linux)
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            cmake ninja-build g++ patchelf zip \
+            libxml2-dev libboost-regex-dev libgmp-dev libsqlite3-dev \
+            default-libmysqlclient-dev
+
+      # --------------------------------------------------------- deps: macOS
+      - name: Install dependencies (macOS)
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          brew update
+          brew install ninja boost gmp libxml2 sqlite mysql-client dylibbundler || true
+
+      # ------------------------------------------------ deps: Windows (MSYS2)
+      - name: Set up MSYS2 / MinGW-w64 (Windows)
+        if: runner.os == 'Windows'
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: true
+          install: >-
+            zip
+            mingw-w64-x86_64-gcc
+            mingw-w64-x86_64-cmake
+            mingw-w64-x86_64-ninja
+            mingw-w64-x86_64-libxml2
+            mingw-w64-x86_64-boost
+            mingw-w64-x86_64-gmp
+            mingw-w64-x86_64-sqlite3
+            mingw-w64-x86_64-libmariadbclient
+
+      # ----------------------------------------------- configure + build + install
+      - name: Configure
+        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DSTORAGE=${{ matrix.storage }}
+
+      - name: Build
+        run: cmake --build build --parallel
+
+      - name: Stage package
+        run: cmake --install build --prefix dist
+
+      # ---------------------------------------------------- bundle deps: Linux
+      - name: Bundle shared libraries (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          mkdir -p dist/lib
+          ldd dist/evolutions | awk '/=>/ {print $3}' | while read -r so; do
+            [ -e "$so" ] || continue
+            case "$(basename "$so")" in
+              libc.so*|libm.so*|libpthread.so*|libdl.so*|librt.so*|ld-linux*|libresolv.so*) ;;
+              *) cp -vL "$so" dist/lib/ ;;
+            esac
+          done
+          patchelf --set-rpath '$ORIGIN/lib' dist/evolutions
+          printf '#!/bin/sh\ncd "$(dirname "$0")"\nexec ./evolutions "$@"\n' > dist/run.sh
+          chmod +x dist/run.sh dist/evolutions
+
+      # ---------------------------------------------------- bundle deps: macOS
+      - name: Bundle dylibs (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          dylibbundler -od -b -x dist/evolutions -d dist/libs -p @executable_path/libs
+          printf '#!/bin/sh\ncd "$(dirname "$0")"\nexec ./evolutions "$@"\n' > dist/run.sh
+          chmod +x dist/run.sh dist/evolutions
+
+      # ------------------------------------------- bundle deps: Windows (MinGW)
+      - name: Bundle DLLs (Windows / MinGW)
+        if: runner.os == 'Windows'
+        run: |
+          cd dist
+          # Copy every MinGW DLL the exe transitively needs (ldd lists the full set);
+          # system DLLs under C:/Windows are left out by the /mingw64/ filter.
+          ldd evolutions.exe | awk '/=>/ {print $3}' | grep -iE '/mingw64/' | while read -r dll; do
+            cp -v "$dll" . || true
+          done
+          printf '@echo off\r\ncd /d %%~dp0\r\nevolutions.exe %%*\r\npause\r\n' > run.bat
+
+      # ------------------------------------------------------ README in package
+      - name: Add package README
+        run: |
+          cat > dist/README-PACKAGE.txt <<EOF
+          OpenTibia Server - Evolution 0.7.8 (modernized)
+          Platform: ${{ matrix.label }}   Storage backend: ${{ matrix.storage }}
+
+          HOW TO RUN
+            Windows : double-click run.bat (or evolutions.exe)
+            Linux   : ./run.sh   (or ./evolutions)
+            macOS   : ./run.sh   (or ./evolutions)   [right-click > Open the first time]
+
+          The server reads ./config.lua and the ./data folder from this directory.
+          Default login/game port: 7171 / 7172.
+
+          STORAGE = ${{ matrix.storage }}
+            sqlite : ready to run, uses the bundled db.s3db
+            xml    : ready to run, file-based storage under data/
+            mysql  : needs a running MySQL/MariaDB server; import database.sql and
+                     set sql_host/sql_user/sql_pass/sql_db in config.lua
+          EOF
+
+      # --------------------------------------------------------------- package
+      - name: Create zip
+        run: |
+          PKG="evolution-0.7.8-${{ matrix.label }}-${{ matrix.storage }}"
+          mv dist "$PKG"
+          zip -r "$PKG.zip" "$PKG"
+          echo "PKG=$PKG" >> "$GITHUB_ENV"
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.PKG }}
+          path: ${{ env.PKG }}.zip
+          if-no-files-found: error
+
+      # ---------------------------------------------------- Release (on tag)
+      - name: Attach to GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ env.PKG }}.zip
+          fail_on_unmatched_files: true

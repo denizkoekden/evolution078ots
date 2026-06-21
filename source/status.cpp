@@ -286,7 +286,7 @@ OTSYS_THREAD_RETURN Status::SendInfoThread(void *p)
 		std::string status_length = std::string(size);
 		post_message = "POST /otservdb.php HTTP/1.1\r\n"
 						"Host: " + host +"\r\n"
-						"User-Agent: otserv("STATUS_SERVER_NAME"/"STATUS_SERVER_VERSION")\r\n"
+						"User-Agent: otserv(" STATUS_SERVER_NAME "/" STATUS_SERVER_VERSION ")\r\n"
 						"Connection: close\r\n"
 						"Cache-Control: no-cache\r\n"
 						"Content-Type: application/x-www-form-urlencoded\r\n"

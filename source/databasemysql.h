@@ -22,7 +22,7 @@
 #define __OTSERV_DatabaseMySQL_H__
 
 #ifdef WIN32
-#include <winsock.h>
+#include <winsock2.h>
 #endif
 
 #ifdef __MYSQL_ALT_INCLUDE__

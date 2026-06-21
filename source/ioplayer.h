@@ -33,7 +33,7 @@ public:
 
 	/** Get a textual description of what source is used
 	  * \returns Name of the source*/
-	virtual char* getSourceDescription(){return "Player source: NULL";};
+	virtual const char* getSourceDescription(){return "Player source: NULL";};
 
 	/** Load a player
 	  * \param player Player structure to load to

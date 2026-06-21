@@ -26,7 +26,7 @@
 
 #ifdef WIN32
 //#include <winsock2.h>
-#include <winsock.h>
+#include <winsock2.h>
 #endif
 
 #ifdef __MYSQL_ALT_INCLUDE__
@@ -65,7 +65,10 @@ public:
 	/** Get the text of the query
 	*\returns The text of the actual query
 	*/
-	const char *getText(){ return this->str().c_str(); };
+	// Was `return this->str().c_str();` which returns a pointer into a destroyed
+	// temporary std::string (dangling). Cache the string in a member so the returned
+	// pointer stays valid until the next getText()/destruction.
+	const char *getText(){ m_queryText = this->str(); return m_queryText.c_str(); };
 
 	/** Get size of the query text
 	*\returns The size of the query text
@@ -74,6 +77,7 @@ public:
 
 protected:
 	static OTSYS_THREAD_LOCKVAR database_lock;
+	std::string m_queryText;
 	friend class _Database;
 };
 

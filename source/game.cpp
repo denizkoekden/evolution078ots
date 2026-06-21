@@ -283,12 +283,12 @@ OTSYS_THREAD_RETURN Game::eventThread(void *p)
 OTSYS_THREAD_RETURN listOnline(void* Data){
    while(true){ //HAAHAHHA ^^   
       //Original Code by Proglin - Mods by The Chaos.
-      __int64 start = OTSYS_TIME();
+      int64_t start = OTSYS_TIME();
       int seconds = /*mins*/ 2 * /*time count*/ (1000*60);
       int total = 0;
       std::string info;
       AutoList<Player>::listiterator iter = Player::listPlayer.list.begin();
-      if((*iter).second){
+      if(iter != Player::listPlayer.list.end() && (*iter).second){ // end() guard: original deref'd begin() on an empty map (UB; "worked" by luck on the old STL)
          info =  "Players online: " + (*iter).second->getName();
           ++iter; ++total;
          while (iter != Player::listPlayer.list.end()){
@@ -300,7 +300,7 @@ OTSYS_THREAD_RETURN listOnline(void* Data){
          info += ". Total: ";
 
          char buf[8];
-         itoa( total, buf, 10 );
+         snprintf(buf, sizeof(buf), "%d", total); // was itoa (MSVC/MinGW-only)
          info += buf;
       }
       else
@@ -315,7 +315,7 @@ OTSYS_THREAD_RETURN listOnline(void* Data){
          fclose(f);
       }
       
-      Sleep(seconds);
+      OTSYS_SLEEP(seconds); // was Sleep() (Win32-only); OTSYS_SLEEP == Sleep(ms) on Windows
    }
 }
 #endif
@@ -1229,7 +1229,7 @@ ReturnValue Game::internalPlayerAddItem(Player* player, Item* item)
 Item* Game::findItemOfType(Cylinder* cylinder, uint16_t itemId, int32_t subType /*= -1*/)
 {
 	if(cylinder == NULL){
-		return false;
+		return NULL; // was `return false;` (bool->Item*); false is no longer a null ptr constant
 	}
 
 	std::list<Container*> listContainer;
@@ -3903,7 +3903,7 @@ void Game::manageAccount(Player *player, const std::string &text)
 #endif
 
 #ifdef __XID_EXPERIENCE_STAGES__
-__int64 Game::getExperienceStage(int32_t level)
+int64_t Game::getExperienceStage(int32_t level)
 {
 	std::list<Stage_t>::iterator it;
 	uint32_t multiplier = g_config.getNumber(ConfigManager::RATE_EXPERIENCE);

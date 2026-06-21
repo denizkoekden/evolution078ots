@@ -25,6 +25,7 @@
 #include <string>
 #include <map>
 #include <list>
+#include <vector> // std::vector (was pulled in transitively by libc++, not by libstdc++)
 
 extern "C"
 {

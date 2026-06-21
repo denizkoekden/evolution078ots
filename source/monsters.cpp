@@ -19,6 +19,8 @@
 //////////////////////////////////////////////////////////////////////
 #include "otpch.h"
 
+#include <cstdlib> // strtoll (was _atoi64)
+
 #include "monsters.h"
 #include "monster.h"
 #include "container.h"
@@ -785,7 +787,7 @@ MonsterType* Monsters::loadMonster(const std::string& file,const std::string& mo
 		}
 
 		if(readXMLString(root, "experience", strValue)){
-			mType->experience = _atoi64(strValue.c_str());
+			mType->experience = strtoll(strValue.c_str(), NULL, 10); // was _atoi64 (MSVC/MinGW-only)
 		}
 
 		if(readXMLInteger(root, "speed", intValue)){

@@ -32,7 +32,7 @@ class IOAccount {
 	static IOAccount* instance();
 	/** Get a textual description of what source is used
 	  * \returns Name of the source*/
-	virtual char* getSourceDescription(){return "Account source: NULL";};
+	virtual const char* getSourceDescription(){return "Account source: NULL";};
 	virtual Account loadAccount(unsigned long accno);
 	
 	virtual bool getPassword(unsigned long accno, const std::string& name, std::string& password);

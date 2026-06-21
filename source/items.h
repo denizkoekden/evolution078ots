@@ -28,6 +28,7 @@
 #include "enums.h"
 #include "itemloader.h"
 #include <map>
+#include <cstring>
 
 #define SLOTP_WHEREEVER 0xFFFFFFFF
 #define SLOTP_HEAD 1

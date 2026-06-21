@@ -102,7 +102,7 @@ bool IOPlayerXML::loadPlayer(Player* player, std::string name)
 			isLoaded = false;
 
 		if(readXMLString(root, "exp", strValue)){
-			player->experience = _atoi64(strValue.c_str());
+			player->experience = strtoll(strValue.c_str(), NULL, 10);
 		}
 		else
 			isLoaded = false;
@@ -574,7 +574,7 @@ bool IOPlayerXML::savePlayer(Player* player)
 
 	sb.str("");
 	char buf[128];
-	_i64toa(player->experience, buf, 10);
+	snprintf(buf, sizeof(buf), "%lld", (long long)player->experience);
 	sb << buf;
 	xmlSetProp(root, (const xmlChar*)"exp", (const xmlChar*)sb.str().c_str());
 

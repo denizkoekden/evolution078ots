@@ -23,6 +23,7 @@
 
 #include "definitions.h"
 #include <string>
+#include <cstring>
 #include "stdio.h"
 
 

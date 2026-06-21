@@ -353,7 +353,7 @@ public:
 	
 	#ifdef __XID_EXPERIENCE_STAGES__
 	bool loadExperienceStages();
-	__int64 getExperienceStage(int32_t level);
+	int64_t getExperienceStage(int32_t level);
 	#endif
 	
 	GameState_t getGameState();
@@ -463,62 +463,9 @@ protected:
 	friend class Action;
 };
 
-template<class ArgType>
-class TCallList : public SchedulerTask{
-public:
-	TCallList(
-		boost::function<bool(Game*, ArgType)> f1,
-		Task* f2,
-		std::list<ArgType>& call_list,
-		int64_t interval) :
-			_f1(f1), _f2(f2), _list(call_list), _interval(interval)
-	{
-		//
-	}
-	
-	virtual void operator()(Game* arg)
-	{
-		if(_eventid != 0){
-			bool ret = _f1(arg, _list.front());
-			_list.pop_front();
-
-			if(ret){
-				if(_list.empty()){
-					//callback function
-					if(_f2){
-						(_f2)(arg);
-						delete _f2;
-					}
-				}
-				else{
-					//fire next task
-					SchedulerTask* newTask = new TCallList(_f1, _f2, _list, _interval);
-					newTask->setTicks(_interval);
-					newTask->setEventId(this->getEventId());
-					arg->addEvent(newTask);
-				}
-			}
-		}
-	}
-
-private:
-	boost::function<bool(Game*, ArgType)> _f1;
-	Task* _f2;
-
-	std::list<ArgType> _list;
-	int64_t _interval;
-};
-
-template<class ArgType>
-SchedulerTask* makeTask(int64_t ticks,
-	boost::function<bool(Game*, ArgType)>* f1,
-	std::list<ArgType>& call_list,
-	int64_t interval,
-	Task* f2)
-{
-	TCallList<ArgType>* t = new TCallList<ArgType>(f1, f2, call_list, interval);
-	t->setTicks(ticks);
-	return t;
-}
-
+// NOTE: the dead TCallList<> template and its 5-arg makeTask<> overload were removed
+// here. They were never instantiated anywhere in the codebase, so the original
+// toolchain never compiled their bodies; modern compilers eagerly type-check
+// TCallList::operator(), which calls Task::operator() on the incomplete type Task
+// (game.h<->tasks.h include cycle). Removing unreachable code keeps behaviour 1:1.
 #endif
