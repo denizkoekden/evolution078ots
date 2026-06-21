@@ -149,7 +149,8 @@ jobs:
       # --------------------------------------------------------------- package
       - name: Create zip
         run: |
-          PKG="evolution-0.7.8-${{ matrix.label }}-${{ matrix.storage }}"
+          VER="${{ github.ref_name }}"; VER="${VER#v}"   # tag v0.7.9-bugfix -> 0.7.9-bugfix; branch -> branch name
+          PKG="evolution-${VER}-${{ matrix.label }}-${{ matrix.storage }}"
           mv dist "$PKG"
           zip -r "$PKG.zip" "$PKG"
           echo "PKG=$PKG" >> "$GITHUB_ENV"
@@ -168,3 +169,6 @@ jobs:
         with:
           files: ${{ env.PKG }}.zip
           fail_on_unmatched_files: true
+          # Hyphenated tags (e.g. v0.7.9-bugfix) are published as a pre-release so the
+          # clean 1:1 v0.7.8 stays the "Latest" release.
+          prerelease: ${{ contains(github.ref_name, '-') }}

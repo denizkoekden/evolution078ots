@@ -551,13 +551,19 @@ bool AccessList::isInList(const Player* player)
 
 	std::transform(name.begin(), name.end(), name.begin(), tolower);
 	for(it = regExList.begin(); it != regExList.end(); ++it){
-		if(boost::regex_match(name.c_str(), what, it->first)){
-			if(it->second){
-				return true;
+		try{
+			if(boost::regex_match(name.c_str(), what, it->first)){
+				if(it->second){
+					return true;
+				}
+				else{
+					return false;
+				}
 			}
-			else{
-				return false;
-			}
+		}
+		catch(...){
+			// pathological pattern can throw boost::regex_error at match time;
+			// skip it (treat as no match) instead of crashing the server.
 		}
 	}
 

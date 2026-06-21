@@ -182,7 +182,9 @@ bool Mailbox::getReceiver(Item* item, std::string& name, uint32_t& dp)
      
 	if(item->getID() == ITEM_PARCEL){ /**We need to get the text from the label incase its a parcel**/
 		Container* parcel = item->getContainer();
-          
+		if(!parcel){ // parcel id on a non-container item: nothing to read, abort send
+			return false;
+		}
 		for(ItemList::const_iterator cit = parcel->getItems(); cit != parcel->getEnd(); cit++){
 			if((*cit)->getID() == ITEM_LABEL){
 				item = (*cit);           

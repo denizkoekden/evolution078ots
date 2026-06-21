@@ -1,6 +1,7 @@
 local focus = 0
 local talk_start = 0
 local target = 0
+local talk_state = 0
 local following = false
 local attacking = false
 

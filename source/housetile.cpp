@@ -58,11 +58,13 @@ Cylinder* HouseTile::__queryDestination(int32_t& index, const Thing* thing, Item
 			if(!house->isInvited(player)){
 				const Position& EntryPos = house->getEntryPosition();
 				Tile* destTile = g_game.getTile(EntryPos.x, EntryPos.y, EntryPos.z);
-				assert(destTile != NULL);
-
-				index = -1;
-				*destItem = NULL;
-				return destTile;
+				if(destTile != NULL){
+					index = -1;
+					*destItem = NULL;
+					return destTile;
+				}
+				// House has no valid exit tile: fall through to the default
+				// destination below (never return a NULL cylinder -> crash on login).
 			}
 		}
 	}

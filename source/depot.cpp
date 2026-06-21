@@ -99,27 +99,27 @@ ReturnValue Depot::__queryAdd(int32_t index, const Thing* thing, uint32_t count,
 		return RET_NOTPOSSIBLE;
 	}
 
-	bool skipLimit = ((flags & FLAG_NOLIMIT) == FLAG_NOLIMIT);
-	
-	if(!skipLimit){
-		int addCount = 0;
+	int addCount = 0;
 
-		if((item->isStackable() && item->getItemCount() != count)){
+	if((item->isStackable() && item->getItemCount() != count)){
+		addCount = 1;
+	}
+
+	if(item->getTopParent() != this){
+		if(const Container* container = item->getContainer()){
+			addCount = container->getItemHoldingCount() + 1;
+		}
+		else{
 			addCount = 1;
 		}
+	}
 
-		if(item->getTopParent() != this){
-			if(const Container* container = item->getContainer()){
-				addCount = container->getItemHoldingCount() + 1;
-			}
-			else{
-				addCount = 1;
-			}
-		}
-
-		if(getItemHoldingCount() + addCount > maxDepotLimit){
-			return RET_DEPOTISFULL;
-		}
+	if(getItemHoldingCount() + addCount > maxDepotLimit){
+		// Hard ceiling enforced even for FLAG_NOLIMIT system moves (house
+		// transfer / parcel delivery): the depot can never grow without bound
+		// and crash on save. Normal depots stay well below the limit; a rejected
+		// move leaves the item in its source cylinder (no item loss).
+		return RET_DEPOTISFULL;
 	}
 
 	return Container::__queryAdd(index, thing, count, flags);

@@ -358,7 +358,7 @@ OTSYS_THREAD_RETURN ConnectionHandler(void *dat)
 							player = new Player(name, protocol);
 							player->useThing2();
 							player->setID();
-							IOPlayer::instance()->loadPlayer(player, name);
+							bool playerLoaded = IOPlayer::instance()->loadPlayer(player, name);
 
 							#ifdef __XID_ACCOUNT_MANAGER__
 							if(player->getName() == "Account Manager"){
@@ -379,7 +379,18 @@ OTSYS_THREAD_RETURN ConnectionHandler(void *dat)
 
 							connectResult_t connectRes = CONNECT_INTERNALERROR;
 
-							if(g_bans.isPlayerBanished(name) && player->getAccessLevel() < ACCESS_ENTER){
+							#ifdef __XID_ACCOUNT_MANAGER__
+							if(!playerLoaded && player->getName() != "Account Manager"){
+							#else
+							if(!playerLoaded){
+							#endif
+								// character row missing/corrupt (e.g. account set to 0): reject
+								// instead of logging in a half-initialized Player and crashing.
+								msg.AddByte(0x14);
+								msg.AddString("Your character could not be loaded.");
+								msg.WriteToSocket(s);
+							}
+							else if(g_bans.isPlayerBanished(name) && player->getAccessLevel() < ACCESS_ENTER){
 								msg.AddByte(0x14);
 								
 								time_t banEnd = g_bans.getBanEnd(name);

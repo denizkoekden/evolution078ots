@@ -1614,7 +1614,7 @@ void Protocol79::sendCloseContainer(uint32_t cid)
 
 void Protocol79::sendCreatureTurn(const Creature* creature, unsigned char stackPos)
 {
-	if(canSee(creature)){
+	if(canSee(creature) && stackPos < 10){ // 7.x client can't address tile slots >= 10 (mirrors the other tile-update sends)
 		NetworkMessage msg;
 
 		msg.AddByte(0x6B);
@@ -2587,6 +2587,7 @@ void Protocol79::setKey(const uint32_t* key)
 #ifdef __PARTYSYSTEM__
 void Protocol79::parseInviteParty(NetworkMessage &msg)
 {
+    OTSYS_THREAD_LOCK_CLASS lockClass(g_game.gameLock, "Protocol79::parseInviteParty()");
     unsigned long creatureid = msg.GetU32();
     Creature* creature = g_game.getCreatureByID(creatureid);
     Player* target = dynamic_cast<Player*>(creature);
@@ -2605,6 +2606,7 @@ void Protocol79::parseInviteParty(NetworkMessage &msg)
 
 void Protocol79::parseRevokeParty(NetworkMessage &msg)
 {
+    OTSYS_THREAD_LOCK_CLASS lockClass(g_game.gameLock, "Protocol79::parseRevokeParty()");
     unsigned long cid = msg.GetU32();
     Player* target = g_game.getPlayerByID(cid);
     if(target && player->party)
@@ -2613,15 +2615,17 @@ void Protocol79::parseRevokeParty(NetworkMessage &msg)
 
 void Protocol79::parseJoinParty(NetworkMessage &msg)
 {
+    OTSYS_THREAD_LOCK_CLASS lockClass(g_game.gameLock, "Protocol79::parseJoinParty()");
     unsigned long cid = msg.GetU32();
     Player* target = g_game.getPlayerByID(cid);
-    
+
     if(target && target->party)
         target->party->acceptInvitation(player);
 }
 
 void Protocol79::parsePassLeadership(NetworkMessage &msg)
 {
+    OTSYS_THREAD_LOCK_CLASS lockClass(g_game.gameLock, "Protocol79::parsePassLeadership()");
     unsigned long cid = msg.GetU32();
     Player* target = g_game.getPlayerByID(cid);
     if(target && player->party && player->party->getLeader() == player)
@@ -2630,6 +2634,7 @@ void Protocol79::parsePassLeadership(NetworkMessage &msg)
 
 void Protocol79::parseLeaveParty()
 {
+    OTSYS_THREAD_LOCK_CLASS lockClass(g_game.gameLock, "Protocol79::parseLeaveParty()");
     if(player->party)
         player->party->kickPlayer(player);
 }

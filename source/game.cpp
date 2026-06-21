@@ -2114,7 +2114,8 @@ bool Game::playerAcceptTrade(Player* player)
 
 	player->setTradeState(TRADE_ACCEPT);
 	Player* tradePartner = player->tradePartner;
-	if(tradePartner && tradePartner->getTradeState() == TRADE_ACCEPT){
+	if(tradePartner && tradePartner->getTradeState() == TRADE_ACCEPT &&
+		player->tradeItem != NULL && tradePartner->tradeItem != NULL){
 
 		Item* tradeItem1 = player->tradeItem;
 		Item* tradeItem2 = tradePartner->tradeItem;
