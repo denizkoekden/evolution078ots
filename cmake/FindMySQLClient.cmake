@@ -38,8 +38,11 @@ find_path(MYSQL_INCLUDE_DIR
     HINTS ${_MYSQL_INC_HINTS}
     PATH_SUFFIXES mysql mariadb)
 
+# Prefer the dynamic client (mariadb / mysqlclient). The static libmariadbclient.a
+# pulls in unresolved internal deps (zlib, zstd, crypt32, secur32, bcrypt) at link
+# time; the import lib resolves them inside the DLL instead.
 find_library(MYSQL_LIBRARY
-    NAMES mariadbclient mariadb mysqlclient libmysql
+    NAMES mariadb libmariadb mysqlclient libmysql mariadbclient
     HINTS ${_MYSQL_LIB_HINTS}
     PATH_SUFFIXES mysql mariadb)
 
