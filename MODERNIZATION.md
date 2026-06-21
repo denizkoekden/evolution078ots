@@ -61,7 +61,7 @@ is kept (not ported to 5.4, which would change number/string semantics).
 ```bash
 # Linux  : apt install cmake g++ libxml2-dev libboost-regex-dev libgmp-dev libsqlite3-dev
 # macOS  : brew install cmake boost gmp libxml2 sqlite
-# Windows: vcpkg install libxml2 boost-regex gmp sqlite3 --triplet x64-windows-static
+# Windows: MSYS2/MinGW64 -> pacman -S mingw-w64-x86_64-{gcc,cmake,ninja,libxml2,boost,gmp,sqlite3}
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DSTORAGE=sqlite
 cmake --build build --parallel
 cmake --install build --prefix dist     # dist/ is a ready-to-run server folder
@@ -168,6 +168,12 @@ Every change is also commented inline at the call site. Categories:
 
 `.github/workflows/release.yml` builds a matrix of
 `{windows, linux, macos} × {sqlite, xml, mysql}` and bundles all runtime
-dependencies into self-contained `.zip` packages (Windows: static via vcpkg;
-macOS: `dylibbundler`; Linux: bundled `.so` + `$ORIGIN/lib` RPATH). Pushing a
-tag `v*` publishes the zips as a GitHub Release.
+dependencies into self-contained `.zip` packages (Windows: MinGW DLLs bundled
+next to the exe; macOS: `dylibbundler`; Linux: bundled `.so` + `$ORIGIN/lib`
+RPATH). Pushing a tag `v*` publishes the zips as a GitHub Release.
+
+**Windows uses MinGW-w64 (MSYS2), not MSVC/vcpkg** — it is the modern successor of
+the original Dev-C++ MinGW toolchain, its prebuilt pacman packages install in
+seconds (vcpkg rebuilt Boost/libxml2/GMP from source on every run), and it shares
+libstdc++ with the Linux build, so the two behave identically. The code remains
+MSVC-compatible (winsock2, `const char*`, `_MSC_VER` shims), but CI ships MinGW.

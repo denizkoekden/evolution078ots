@@ -22,7 +22,7 @@ list of changes, assumptions, and the fixed pre-existing bugs.
 ```bash
 # Linux  : sudo apt install cmake g++ libxml2-dev libboost-regex-dev libgmp-dev libsqlite3-dev
 # macOS  : brew install cmake boost gmp libxml2 sqlite
-# Windows: vcpkg install libxml2 boost-regex gmp sqlite3 --triplet x64-windows-static
+# Windows: MSYS2/MinGW64 -> pacman -S mingw-w64-x86_64-{gcc,cmake,ninja,libxml2,boost,gmp,sqlite3}
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DSTORAGE=sqlite
 cmake --build build --parallel
 cmake --install build --prefix dist     # ready-to-run server folder
