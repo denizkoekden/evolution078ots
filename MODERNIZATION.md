@@ -177,3 +177,54 @@ the original Dev-C++ MinGW toolchain, its prebuilt pacman packages install in
 seconds (vcpkg rebuilt Boost/libxml2/GMP from source on every run), and it shares
 libstdc++ with the Linux build, so the two behave identically. The code remains
 MSVC-compatible (winsock2, `const char*`, `_MSC_VER` shims), but CI ships MinGW.
+
+---
+
+## 7. Remote-Control (OTAdmin) — cross-platform admin GUI
+
+The bundled admin tool under `remote control/` was a **Windows-only Win32 GUI**
+(Dev-C++ / MinGW 3.4.2: `WinMain`, `CreateWindowEx`, `WndProc`, `.rc` resources).
+A Win32 GUI cannot be *both* byte-identical *and* run natively on Linux/macOS, so
+the split here is deliberate:
+
+- **Core kept 1:1** — `commands.cpp` (the 27 admin commands + login/encryption
+  handshake), `networkmessage.cpp` (wire format + XTEA/RSA), `rsa.cpp` (GMP). These
+  already shipped POSIX socket branches; they only needed the Win32 GUI headers
+  removed and a few transitive includes added (`<algorithm>`, `<cstring>`,
+  `<cctype>`) — the same class of edit as the server. The admin **protocol is
+  unchanged**, so it talks to the exact same server.
+- **Front-end re-implemented in wxWidgets** — `source/gui_wx.cpp` replaces the
+  Win32 `main.cpp` + `gui.cpp` + `stdafx.cpp` + the `.rc` resources. wxWidgets uses
+  the platform's **native** widgets (MSW / GTK / Cocoa), so on Windows it looks
+  essentially like the original. The menu tree, the input prompts and every command
+  are reproduced 1:1; the old `CInputBox` modal becomes `wxTextEntryDialog`, and the
+  core's `addConsoleMessage()` hook (now `frontend.h`) routes into the console pane.
+
+| File | Purpose |
+|------|---------|
+| `remote control/CMakeLists.txt` | Standalone portable build (wxWidgets `core base` + GMP + sockets). `-fno-strict-aliasing` for the type-punned message buffers, like the server. |
+| `remote control/source/frontend.h` | Portable logging hook the core calls; implemented by the active front-end. |
+| `remote control/source/gui_wx.cpp` | The wxWidgets front-end. |
+
+Decoupling edits to the core: `definitions.h` now pulls in winsock2 before
+`<windows.h>` (wx-compatible, links `ws2_32`) and defines a POSIX
+`WSAGetLastError()`→`errno` shim; `commands.cpp` / `networkmessage.cpp` drop the
+Win32 GUI includes (`stdafx.h`, `gui.h`, `resource.h`) for `frontend.h`. The dead
+`extern HWND hStatusWindow;` (only referenced from already-commented code) was
+removed. No command logic changed.
+
+Build it like the server:
+
+```bash
+# Linux  : apt install cmake g++ libgmp-dev libwxgtk3.2-dev
+# macOS  : brew install cmake gmp wxwidgets
+# Windows: MSYS2/MinGW64 -> pacman -S mingw-w64-x86_64-{gcc,cmake,ninja,gmp,wxwidgets3.2-msw}
+cmake -S "remote control" -B build-rc -DCMAKE_BUILD_TYPE=Release
+cmake --build build-rc --parallel
+cmake --install build-rc --prefix dist-rc   # Remote-Control + logo.bmp next to it
+```
+
+CI builds it for all three OSes in the `remote-control` job of
+`release.yml` and ships per-OS zips alongside the server packages (Linux bundles
+wxWidgets+GMP and relies on the system GTK3; macOS uses `dylibbundler`; Windows
+bundles the MinGW DLLs). The app version string is kept at the original **0.7.7**.
