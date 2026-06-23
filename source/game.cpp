@@ -3672,7 +3672,8 @@ void Game::manageAccount(Player *player, const std::string &text)
 					std::stringstream ss;
 					int i = 0;
 					
-					for(VocationsMap::iterator it = g_vocations.getVocationEnd(); it != g_vocations.getVocationBegin(); it--){
+					for(VocationsMap::iterator it = g_vocations.getVocationEnd(); it != g_vocations.getVocationBegin();){
+						--it;
 						if(it->first != (it->second)->getPreVocation()){
 							continue;
 						}

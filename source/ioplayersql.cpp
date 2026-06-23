@@ -747,8 +747,13 @@ bool IOPlayerSQL::createPlayer(Player* player)
 	}
 	
 	DBQuery query;
+	#ifdef __USE_SQLITE__
+	// SQLite only auto-assigns the rowid for NULL; a literal 0 is stored verbatim.
+	query << "INSERT INTO `players` (`id`, `name`, `account`) VALUES (NULL, '" << player->getName() << "', '" << player->getAccount() << "')";
+	#else
 	query << "INSERT INTO `players` (`id`, `name`, `account`) VALUES ('" << 0 << "', '" << player->getName() << "', '" << player->getAccount() << "')";
-	
+	#endif
+
 	if(!mysql->executeQuery(query)){
 		return false;
 	}
