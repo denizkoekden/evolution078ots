@@ -28,7 +28,7 @@ endif()
 
 find_package(PkgConfig QUIET)
 if(PkgConfig_FOUND)
-    pkg_check_modules(PC_MYSQL QUIET libmariadb mariadb libmysqlclient mysqlclient)
+    pkg_search_module(PC_MYSQL QUIET libmariadb mariadb libmysqlclient mysqlclient)
     list(APPEND _MYSQL_INC_HINTS ${PC_MYSQL_INCLUDEDIR} ${PC_MYSQL_INCLUDE_DIRS})
     list(APPEND _MYSQL_LIB_HINTS ${PC_MYSQL_LIBDIR} ${PC_MYSQL_LIBRARY_DIRS})
 endif()
