@@ -128,6 +128,8 @@ im Code begründet. Als Fundament ist das brauchbar.
   - GM-Seed nicht ausliefern, oder beim ersten Start ein Zufallspasswort erzeugen und ausgeben.
   - Den Demo-Account ohne Rechte anlegen und `logintries > 0` setzen.
   - Mittelfristig Passwort-Hashing einführen.
+- **Entscheidung (User, 2026-10-11):** Der Account bleibt bewusst erhalten. Umgesetzt ist stattdessen eine
+  Warnung beim Start, solange das Standardpasswort gesetzt ist (siehe §10).
 
 #### K3 – `/save` stürzt in GCC-Builds ab (Linux, Docker, Pterodactyl) · [verifiziert per Disassembly; Absturz nicht live ausgelöst] · Altlast, durch den modernen Compiler scharf geschaltet
 
@@ -512,8 +514,46 @@ Memory-Notizen der früheren Sitzung.
 abgeschnitten, und gelesen wird per `strlen`. Haus-Item-Attribute (`tileitems.attributes`) werden beim Speichern
 also beschädigt. [Code]
 
-## 10. Umsetzung
+## 10. Umsetzung (Branch `fix/review-findings`)
 
-- Die Fixes liegen auf dem Branch `fix/review-findings` (Basis `master`), ein Commit pro Befund.
-- Nicht enthalten, weil sie nach dem Konzept zu `bugfixes` gehören: M3 (`listOnline`-Lock) und M4
-  (Socket-Übergabe). Sie sind für den Sync-Merge `master` → `bugfixes` vorgesehen.
+Basis ist `master`, ein Commit pro Befund. Der Branch ist **weder gepusht noch gemergt**.
+
+| Befund | Commit | Umsetzung | Wie geprüft |
+| --- | --- | --- | --- |
+| K3 | `528f604` | Returns an den 14 Stellen, `-Werror=return-type` | GCC 16 lokal, GCC 11 und 13 in Docker: 0 Warnungen; `saveServer` endet mit `ret` |
+| K1 (+M2, M5) | `149c558` | `prepare`/`step`, echte Längen, `''`-Quoting, `X'..'`, Escaping zur Laufzeit je Backend | Unit-Test besteht hier und scheitert auf `master`; Rune mit `0x27`/`0x00` in den Attributen übersteht zwei Server-Zyklen byte-genau |
+| K4 | `84fcee5` | `blessings`, Spalten-Defaults, `sql_mode` per `MYSQL_INIT_COMMAND` | MariaDB 11.8: neues Schema im Strict-Mode ok, altes Schema mit dem Session-Modus ok; Docker-Stack speichert |
+| K2 | `4cc618d` | GM-Account bleibt (**dein Wunsch**); Warnung beim Start | SQLite, XML, MySQL: Warnung bei Standardpasswort, keine nach Änderung |
+| H2 | `2301771` | SIGTERM/SIGINT → Save → Exit 0 | Smoke-Test SQLite/XML (macOS, Ubuntu 22.04); `docker compose stop` in 1 s, Exit 0 |
+| K5 (neu) | `ad22e81` | XML-Deadlock beim Speichern unter Linux/macOS | vom Smoke-Test gefunden, danach grün |
+| M1 | `d0a1e38` | Original-`upchar`-Tabelle, Hexdump `0xB7` | alle 256 Bytes gegen `0db70b7` |
+| M9 | `915e864` | Lua 5.1.5 | SHA256 gegen lua.org; Startup-Log identisch zu 5.1.0 |
+| M8 | `6d8c0f4` | CMake-Aufräumen | 0 CMake-Warnungen in allen vier Varianten |
+| H3, M6 | `99b372d` | Reinstall-Schutz, zweistufiges Escaping | Kopierlogik isoliert; Escaping mit BSD- und GNU-`sed` plus Lua 5.1 |
+| H4, M7 | `4890723` | CI: `ubuntu:22.04`-Container, Smoke-Tests, brew-Prüfung | CI-Schritte lokal in `ubuntu:22.04` nachgestellt; Binary braucht GLIBC_2.34 |
+| M10 | `9974f3e` | Remote-Control: eigenes Makro, Latin-1 | Build gegen wxWidgets 3.3 (macOS); GUI nicht gestartet |
+| Niedrig | `97e35ef` | `intptr_t`-Cast, String + Enum | mit `-Wall` keine dieser Warnungen mehr |
+
+**Abweichungen vom ursprünglichen Plan:**
+
+- **K2:** Der GM-Seed bleibt wie gewünscht; statt ihn zu entfernen, warnt der Server beim Start.
+- **`logintries` bleibt 0.** Mit `logintimeout = 0` sperrt die Logik nie. Außerdem zählt die Engine auch
+  erfolgreiche Logins, und jeder Login besteht aus zwei Verbindungen. Mit `logintries = 3` würde schon ein Relog
+  innerhalb einer Minute sperren. Wie man es gezielt einschaltet, steht in `DEPLOYMENT.md`.
+- **H4:** `debian:11` als Build-Basis scheiterte (LTS-Ende, Security-Repo liefert 404). Deshalb `ubuntu:22.04`.
+
+**Neu gefunden während der Umsetzung:**
+
+- K5 (XML-Deadlock)
+- die Korrektur von K1 (Datenverlust statt Injection)
+- zwei verwaiste `tileitems`-Zeilen im Seed: deren `tileid` fehlt in `tilelist`, beim ersten Save fallen sie weg
+  (harmlos)
+
+**Offen, nicht in diesem Branch:**
+
+- M3 (`listOnline` ohne Lock) und M4 (Socket per Adresse). Sie gehören zum Sync-Merge `master` → `bugfixes`.
+- Der Sync-Merge selbst. Er behebt H1; danach die Eggs gegebenenfalls auf ein Tag pinnen.
+- Ein Test-Client für das 7.92-Protokoll, damit Login, Spieler-Save, Account Manager und `/save` im Spiel echt
+  durchgetestet werden können.
+- Windows ist nur über die CI gebaut; der Ctrl+C-Handler ist dort ungetestet. Offen ist auch die Signatur der
+  gebündelten macOS-Binaries.

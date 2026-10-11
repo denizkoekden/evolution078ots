@@ -2,8 +2,8 @@
 
 This document records how the original 2007-era **Evolution 0.7.8** sources (a
 Dev-C++ / MinGW-GCC-3.4.2, Windows-only OTServ fork) were made to build with
-modern compilers (GCC 13+, Clang 16+, MSVC 2022) on **Windows, Linux and macOS**,
-**without changing runtime behaviour**.
+modern compilers (GCC 11–16, Clang, MinGW-w64 on Windows) on **Windows, Linux and
+macOS**, **without changing runtime behaviour**. MSVC is not built in CI.
 
 The guiding rule for every change below: *preserve the original behaviour 1:1;
 only touch what a modern toolchain rejects, and isolate anything that could
@@ -24,7 +24,7 @@ New files:
 | File | Purpose |
 |------|---------|
 | `CMakeLists.txt` | Portable build; source manifest mirrors `Makefile.win`; all original `-D` feature flags preserved verbatim. |
-| `cmake/BuildVendoredLua.cmake` | Builds **PUC Lua 5.1** as a static lib from the repo's own `source/libraries/lua-5.1.tar.gz` (hash-pinned) — identical Lua on every OS. |
+| `cmake/BuildVendoredLua.cmake` | Builds **PUC Lua 5.1.5** as a static lib from the repo's own `source/libraries/lua-5.1.5.tar.gz` (hash-pinned) — identical Lua on every OS. |
 | `cmake/FindGMP.cmake` | Locates GNU MP. |
 | `cmake/FindMySQLClient.cmake` | Locates the MySQL/MariaDB client (optional). |
 | `.github/workflows/release.yml` | CI matrix → self-contained per-OS `.zip` packages. |
@@ -49,7 +49,9 @@ branch), as in the original.
 ### Dependencies
 
 libxml2, Boost (regex compiled; bind/function/tokenizer/pool header-only), GMP,
-Lua 5.1 (vendored), plus SQLite3 and/or the MySQL client depending on `STORAGE`.
+Lua 5.1.5 (vendored; the original Dev-C++ build linked 5.1.2, see
+`source/libraries/lua-5.1.2-1dre.DevPak` — the `lua.dll` 5.0.2 in the repo root is a
+leftover), plus SQLite3 and/or the MySQL client depending on `STORAGE`.
 **Boost is kept** (not replaced by `std::`): `boost::regex` is not a 1:1 swap for
 `std::regex`, and `boost::function` is required by `MovePlayerTask`. **Lua 5.1**
 is kept (not ported to 5.4, which would change number/string semantics).
@@ -125,11 +127,11 @@ Every change is also commented inline at the call site. Categories:
 
 ## 4. Pre-existing bugs found and fixed (needed to build/run on a modern toolchain)
 
-1. **`tools.cpp` `upchar()` data corruption** — the accented-letter upper-casing
-   table had every CP1252 high byte corrupted to U+FFFD (the Unicode replacement
-   char) somewhere in the archive's history, collapsing all 31 branches to one
-   value. Reconstructed as the standard Latin-1/CP1252 mapping
-   (à..þ → À..Þ via `-0x20`, ÿ → Ÿ). **Assumption** — see below.
+1. **`tools.cpp` `upchar()`** — *corrected in the review (§8)*: the archived
+   source was **not** corrupted; its Latin-1 bytes are intact and only a UTF-8 diff
+   view shows them as U+FFFD. The original table is exactly `0xE0..0xFF` except
+   `0xF7` → `-0x20` (so ÿ → ß, `0xDF`). The first reconstruction mapped ÿ → Ÿ
+   (`0x9F`); the original mapping is restored and verified for all 256 bytes.
 2. **`game.cpp` `listOnline()` crash** — dereferenced `listPlayer.list.begin()`
    without an `end()` check; with 0 players online (startup) this read past a
    global array (confirmed via AddressSanitizer). "Worked" by luck on the old
@@ -140,7 +142,8 @@ Every change is also commented inline at the call site. Categories:
 4. **`database.h` `getText()`** returned `c_str()` of a destroyed temporary
    (dangling). Cached in a member.
 5. **`database.cpp` `DBResult::clear()`** — `delete[]` on scalar `new` (`RowData`,
-   `unsigned long`) → `delete`.
+   `unsigned long`) → `delete`; the per-row `row`/`length` arrays it leaked are
+   freed since the review (§8).
 6. **`ban.cpp` / `game.cpp`** — `return false;` from functions returning
    `std::string` / `Item*` (relied on the pre-C++11 "false is a null pointer
    constant" rule) → `return "";` / `return NULL;`.
@@ -155,10 +158,6 @@ Every change is also commented inline at the call site. Categories:
 - **Config path**: the original `*nix` code read `$HOME/.otserv/config.lua`. Since
   there was never a working `*nix` build, the packages define `__NO_HOMEDIR_CONF__`
   and read `./config.lua` on every OS so the zips are "download & run".
-- **`upchar()` reconstruction** restores the *original Evolution* behaviour, which
-  is more faithful than preserving the corrupted (and uncompilable) archive state.
-  If an authentic, uncorrupted Evolution 0.7.8 `tools.cpp` is available, the table
-  can be diffed against it.
 - **Default published package = SQLite** (self-contained). MySQL and XML are
   also built and shipped (MySQL needs an external server).
 
@@ -171,6 +170,11 @@ Every change is also commented inline at the call site. Categories:
 dependencies into self-contained `.zip` packages (Windows: MinGW DLLs bundled
 next to the exe; macOS: `dylibbundler`; Linux: bundled `.so` + `$ORIGIN/lib`
 RPATH). Pushing a tag `v*` publishes the zips as a GitHub Release.
+
+Linux packages are built in an `ubuntu:22.04` container, so the binary needs only
+glibc 2.34/2.35 (Ubuntu 22.04, Debian 12, RHEL 9 and newer). Before zipping, the
+sqlite and xml packages of Linux and macOS run `tools/smoke-test.sh` on a copy:
+the server must answer the status query, and SIGTERM must save and exit with 0.
 
 **Windows uses MinGW-w64 (MSYS2), not MSVC/vcpkg** — it is the modern successor of
 the original Dev-C++ MinGW toolchain, its prebuilt pacman packages install in
@@ -228,3 +232,30 @@ CI builds it for all three OSes in the `remote-control` job of
 `release.yml` and ships per-OS zips alongside the server packages (Linux bundles
 wxWidgets+GMP and relies on the system GTK3; macOS uses `dylibbundler`; Windows
 bundles the MinGW DLLs). The app version string is kept at the original **0.7.7**.
+
+---
+
+## 8. Review fixes (October 2026)
+
+A code review of the modernization (`REVIEW-NOTIZEN.md`, German) found defects
+that only show at runtime on the new toolchains, backends and deployment paths.
+They are fixed on the same 1:1 principle: the original engine behaviour is kept,
+what a modern platform breaks is repaired. Each item is one commit.
+
+| ID | Problem | Fix |
+|----|---------|-----|
+| K3 | 14 non-void functions fell off the end. GCC ≥ 8 treats that as unreachable: `/save` (`Commands::saveServer`) had no `ret` and aborted the Linux/Docker server. | Explicit returns following the existing conventions; `-Werror=return-type`. |
+| K1 | SQLite (the default backend) used MySQL-style escaping that emits `'\`: one apostrophe in an item text or house list made the INSERT fail and rolled back the whole save; newlines/backslashes were altered; blobs were cut at the first NUL. | `sqlite3_prepare_v2`/`step`, one statement per call, values with their real length, `''` quoting, blobs as `X'..'`, escaping chosen at runtime per backend (also fixes `mysql+sqlite`). MySQL output is byte-identical. |
+| K4 | `database.sql` had no `blessings` table (every save failed); modern strict mode rejected `createPlayer`. | `blessings` + column defaults; session `sql_mode='NO_ENGINE_SUBSTITUTION'` (`MYSQL_INIT_COMMAND`). Existing databases: see `DEPLOYMENT.md`. |
+| K5 | XML backend: `savePlayer` locked the libxml mutex and called `saveVIP`, which locks it again — recursive on Win32, a self-deadlock on Linux/macOS (first logout/autosave froze the server). | `saveVIP` after the unlock. |
+| K2 | The shipped GM account 222222 uses the public demo password. It is kept on purpose. | Startup warning while it still has the default password. |
+| H2 | Only SIGPIPE was handled: `docker stop` / Pterodactyl stop / Ctrl+C killed the server without saving. | SIGTERM/SIGINT (Windows: Ctrl+C) run the in-game shutdown sequence — kick and save all players, save the world, exit 0. |
+| H3, M6 | Pterodactyl reinstall overwrote `config.lua`, `data/` and `db.s3db`; config values were not escaped for Lua. | Staged install that only adds missing files; values escaped for Lua and sed, numbers validated. |
+| H4, M7 | Linux zips needed glibc 2.38; no runtime test in CI. | `ubuntu:22.04` build container; `tools/smoke-test.sh`. |
+| M1 | `upchar()` (see §4.1). | Original table restored. |
+| M9 | The vendored tarball was Lua 5.1.0 (2006), older than the 5.1.2 of the original build. | Lua 5.1.5 (final 5.1 bugfix release, API/ABI-compatible). |
+| M8, M10 | CMake policy/deprecation warnings, ineffective pkg-config fallback; Remote-Control redefined `EWOULDBLOCK` and decoded the server's Latin-1 text as UTF-8. | Cleaned up; Latin-1 conversion both ways. |
+
+Kept for the `bugfixes` variant (engine races, not modernization defects): the
+unlocked `listOnline` thread and the socket handed to `ConnectionHandler` by the
+address of a loop variable.

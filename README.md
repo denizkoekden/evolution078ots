@@ -19,8 +19,8 @@ Thanks to my clanker. 😅
 ## Modernized build (Windows / Linux / macOS)
 
 The original sources only built with Dev-C++ / MinGW (Windows). They now build
-unchanged-in-behaviour with modern GCC / Clang / MSVC via **CMake**, with Lua 5.1
-vendored from this repo. See **[MODERNIZATION.md](MODERNIZATION.md)** for the full
+unchanged-in-behaviour with modern GCC / Clang (MinGW-w64 on Windows) via **CMake**,
+with Lua 5.1.5 vendored from this repo. See **[MODERNIZATION.md](MODERNIZATION.md)** for the full
 list of changes, assumptions, and the fixed pre-existing bugs.
 
 ### Quick start
@@ -58,9 +58,9 @@ cmake --build build-rc --parallel
 See **[MODERNIZATION.md](MODERNIZATION.md) §7** for the details.
 
 > The original engine has several known crash bugs listed below; they are
-> **behaviour-preserved** by the modernization (not silently changed). Two crash
-> bugs that the old MSVC runtime hid by luck were fixed because they are
-> deterministic on modern toolchains (see MODERNIZATION.md §4).
+> **behaviour-preserved** by the modernization (not silently changed). Bugs that
+> the old toolchain hid by luck but that break deterministically on modern
+> compilers and platforms are fixed (see MODERNIZATION.md §4 and §8).
 
 
 # Crash, bugs
