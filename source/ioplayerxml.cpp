@@ -878,12 +878,13 @@ bool IOPlayerXML::savePlayer(Player* player)
 	//if(xmlSaveFile(filename.c_str(), doc)){
 	bool result = xmlSaveFormatFileEnc(filename.c_str(), doc, "UTF-8", 1);
 	
+	xmlFreeDoc(doc);
+	xmlMutexUnlock(xmlmutex);
+	
+	// saveVIP locks xmlmutex itself; unlike on Windows it is not recursive on POSIX
 	if(!saveVIP(player)){
 		result = false;
 	}
-	
-	xmlFreeDoc(doc);
-	xmlMutexUnlock(xmlmutex);
 	return result;
 }
 
