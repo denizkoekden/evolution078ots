@@ -900,6 +900,14 @@ int main(int argc, char *argv[])
 	IpNetMask.first  = inet_addr(ip.c_str());
 	IpNetMask.second = 0;
 	serverIPs.push_back(IpNetMask);
+
+	// the shipped GM account 222222 is meant to be used, but not with its public default password
+	if(IOAccount::instance()->loadAccount(222222).password == "tibia"){
+		std::cout << ":: WARNING: GM account 222222 still uses the default password \"tibia\"." << std::endl;
+		std::cout << ":: WARNING: Change it before your server is reachable from the internet!" << std::endl;
+		std::cout << "::" << std::endl;
+	}
+
 	std::cout << ":: Starting Server... ";
 
 	Status* status = Status::instance();
