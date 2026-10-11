@@ -98,7 +98,7 @@ void Mailbox::__replaceThing(uint32_t index, Thing* thing)
 
 bool Mailbox::__removeThing(Thing* thing, uint32_t count)
 {
-	//
+	return RET_NOTPOSSIBLE;
 }
 
 void Mailbox::postAddNotification(Thing* thing, int32_t index, cylinderlink_t link /*= LINK_OWNER*/)

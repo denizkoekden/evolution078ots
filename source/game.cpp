@@ -3547,6 +3547,7 @@ bool Game::checkPremium(Player* player)
 			player->setVocation(player->vocation->getPreVocation());
 		}
 	}
+	return true;
 }
 #endif
 

@@ -1365,6 +1365,7 @@ bool Commands::saveServer(Creature* creature, const std::string& cmd, const std:
 		player->sendTextMessage(MSG_STATUS_CONSOLE_BLUE, "Global save complete.");
 	
     g_game.saveServer();
+	return true;
 }
 #endif
 

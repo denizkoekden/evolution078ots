@@ -180,6 +180,11 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
     target_compile_options(evolutions PRIVATE -fno-strict-aliasing)
 endif()
 
+# Falling off the end of a non-void function is UB that modern GCC turns into crashes.
+if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+    target_compile_options(evolutions PRIVATE -Werror=return-type)
+endif()
+
 if(WARNINGS_AS_ERRORS)
     if(MSVC)
         target_compile_options(evolutions PRIVATE /WX)
