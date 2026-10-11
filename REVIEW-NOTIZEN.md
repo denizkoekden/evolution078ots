@@ -549,11 +549,19 @@ Basis ist `master`, ein Commit pro Befund. Der Branch ist **weder gepusht noch g
 - zwei verwaiste `tileitems`-Zeilen im Seed: deren `tileid` fehlt in `tilelist`, beim ersten Save fallen sie weg
   (harmlos)
 
-**Offen, nicht in diesem Branch:**
+**Sync nach `bugfixes` (erledigt am 2026-10-11):**
 
-- M3 (`listOnline` ohne Lock) und M4 (Socket per Adresse). Sie gehören zum Sync-Merge `master` → `bugfixes`.
-- Der Sync-Merge selbst. Er behebt H1; danach die Eggs gegebenenfalls auf ein Tag pinnen.
-- Ein Test-Client für das 7.92-Protokoll, damit Login, Spieler-Save, Account Manager und `/save` im Spiel echt
-  durchgetestet werden können.
+- `master` wurde in `bugfixes` gemergt. Konflikte: Bei Remote-Control und `MODERNIZATION.md` gilt die
+  `master`-Fassung. In `release.yml` bleibt die Versionierung von `bugfixes` und gilt jetzt auch für den
+  Linux-Job.
+- Auf `bugfixes` liegen zusätzlich M3 (`listOnline` unter `gameLock`) und M4 (eigene Socket-Kopie pro Thread).
+- **M4 gemessen:** 300 parallele Status-Abfragen werden mit dem Fix 300/300 beantwortet, auf `master` nur
+  215–219/300. Das betrifft jede fünfte Verbindung eines Schwalls, etwa Logins nach einem Neustart. Deshalb
+  spricht viel dafür, M4 auch nach `master` zu übernehmen. **Offen, deine Entscheidung.**
+- `CRASHFIXES.md` auf `bugfixes`: #10 und #11 ergänzt, #7 als Mechanik-Änderung benannt.
+
+**Weiter offen:**
+
+- Test-Client für das 7.92-Protokoll (bewusst nicht umgesetzt).
 - Windows ist nur über die CI gebaut; der Ctrl+C-Handler ist dort ungetestet. Offen ist auch die Signatur der
   gebündelten macOS-Binaries.
