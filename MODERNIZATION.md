@@ -255,7 +255,7 @@ what a modern platform breaks is repaired. Each item is one commit.
 | M1 | `upchar()` (see §4.1). | Original table restored. |
 | M9 | The vendored tarball was Lua 5.1.0 (2006), older than the 5.1.2 of the original build. | Lua 5.1.5 (final 5.1 bugfix release, API/ABI-compatible). |
 | M8, M10 | CMake policy/deprecation warnings, ineffective pkg-config fallback; Remote-Control redefined `EWOULDBLOCK` and decoded the server's Latin-1 text as UTF-8. | Cleaned up; Latin-1 conversion both ways. |
+| M4 | The accept loop handed each new connection thread the *address* of a loop variable; the next `accept()` overwrote it before the thread read it. On multi-core machines a burst lost about one connection in five (300 parallel status queries: 215–219 answered). | Each thread gets its own copy of the socket (300/300 answered). |
 
-Kept for the `bugfixes` variant (engine races, not modernization defects): the
-unlocked `listOnline` thread and the socket handed to `ConnectionHandler` by the
-address of a loop variable.
+Kept for the `bugfixes` variant (an engine race, not a modernization defect): the
+`listOnline` thread reading the player list without the game lock.
