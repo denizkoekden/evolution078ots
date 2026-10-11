@@ -335,6 +335,7 @@ public:
 	#ifdef __TLM_SERVER_SAVE__
 	void saveServer();
 	void autoServerSave();
+	void shutdownServer(int exitCode);
 	#endif
 
 	#ifdef __XID_PREMIUM_SYSTEM__
