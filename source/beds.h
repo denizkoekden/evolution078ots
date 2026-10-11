@@ -78,8 +78,8 @@ public:
 	
 	static IOBeds* instance();
 	
-	virtual bool loadBeds(const std::string &identifier) {};
-	virtual bool saveBeds(const std::string &identifier) {};
+	virtual bool loadBeds(const std::string &identifier) {return false;};
+	virtual bool saveBeds(const std::string &identifier) {return false;};
 	
 protected:
 	static IOBeds* _instance;

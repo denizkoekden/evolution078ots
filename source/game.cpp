@@ -3467,6 +3467,20 @@ void Game::FreeThing(Thing* thing)
 }
 
 #ifdef __TLM_SERVER_SAVE__
+void Game::shutdownServer(int exitCode)
+{
+	OTSYS_THREAD_LOCK_CLASS lockClass(gameLock, "Game::shutdownServer()");
+	setGameState(GAME_STATE_CLOSED);
+
+	while(!Player::listPlayer.list.empty())
+		Player::listPlayer.list.begin()->second->kickPlayer();
+
+	saveServer();
+	std::cout << ":: Shutting down Server..." << std::endl;
+	OTSYS_SLEEP(1000);
+	exit(exitCode);
+}
+
 void Game::saveServer()
 {
 	std::cout << ":: server save.. ";
@@ -3548,6 +3562,7 @@ bool Game::checkPremium(Player* player)
 			player->setVocation(player->vocation->getPreVocation());
 		}
 	}
+	return true;
 }
 #endif
 
@@ -3562,15 +3577,7 @@ void Game::checkShutdown(int minutes)
 {
 	OTSYS_THREAD_LOCK_CLASS lockClass(gameLock, "Game::checkShutdown()");
 	if(minutes == 0){
-		setGameState(GAME_STATE_CLOSED);
-
-		while(!Player::listPlayer.list.empty())
-			Player::listPlayer.list.begin()->second->kickPlayer();
-
-		saveServer();
-		std::cout << ":: Shutting down Server..." << std::endl;
-		OTSYS_SLEEP(1000);
-		exit(1);
+		shutdownServer(1);
 	}
 	else {
 		std::stringstream msg;
@@ -3673,7 +3680,8 @@ void Game::manageAccount(Player *player, const std::string &text)
 					std::stringstream ss;
 					int i = 0;
 					
-					for(VocationsMap::iterator it = g_vocations.getVocationEnd(); it != g_vocations.getVocationBegin(); it--){
+					for(VocationsMap::iterator it = g_vocations.getVocationEnd(); it != g_vocations.getVocationBegin();){
+						--it;
 						if(it->first != (it->second)->getPreVocation()){
 							continue;
 						}

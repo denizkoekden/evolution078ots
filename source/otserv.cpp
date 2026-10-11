@@ -32,6 +32,7 @@
 
 #include <stdlib.h>
 #include <time.h>
+#include <csignal>
 #include "game.h"
 
 #include "ioaccount.h"
@@ -130,6 +131,24 @@ bool passwordTest(std::string &plain, std::string &hash)
 		return false;
 	}
 }
+
+#ifdef __TLM_SERVER_SAVE__
+// set by SIGTERM/SIGINT (docker stop, panel stop, Ctrl+C); the accept loop saves and exits
+static volatile sig_atomic_t g_shutdownRequested = 0;
+
+#ifdef WIN32
+static BOOL WINAPI shutdownRequestHandler(DWORD)
+{
+	g_shutdownRequested = 1;
+	return TRUE;
+}
+#else
+static void shutdownRequestHandler(int)
+{
+	g_shutdownRequested = 1;
+}
+#endif
+#endif
 
 OTSYS_THREAD_RETURN ConnectionHandler(void *dat)
 {
@@ -588,6 +607,20 @@ int main(int argc, char *argv[])
 	sigaction(SIGPIPE, &sigh, NULL);
 #endif
 
+#ifdef __TLM_SERVER_SAVE__
+#ifdef WIN32
+	SetConsoleCtrlHandler(shutdownRequestHandler, TRUE);
+#else
+	struct sigaction shutdownAction;
+	memset(&shutdownAction, 0, sizeof(shutdownAction));
+	shutdownAction.sa_handler = shutdownRequestHandler;
+	shutdownAction.sa_flags = SA_RESTART;
+	sigemptyset(&shutdownAction.sa_mask);
+	sigaction(SIGTERM, &shutdownAction, NULL);
+	sigaction(SIGINT, &shutdownAction, NULL);
+#endif
+#endif
+
 //	LOG_MESSAGE("main", EVENT, 1, "Starting server");
 
 	g_game.setGameState(GAME_STATE_STARTUP);
@@ -878,6 +911,14 @@ int main(int argc, char *argv[])
 	IpNetMask.first  = inet_addr(ip.c_str());
 	IpNetMask.second = 0;
 	serverIPs.push_back(IpNetMask);
+
+	// the shipped GM account 222222 is meant to be used, but not with its public default password
+	if(IOAccount::instance()->loadAccount(222222).password == "tibia"){
+		std::cout << ":: WARNING: GM account 222222 still uses the default password \"tibia\"." << std::endl;
+		std::cout << ":: WARNING: Change it before your server is reachable from the internet!" << std::endl;
+		std::cout << "::" << std::endl;
+	}
+
 	std::cout << ":: Starting Server... ";
 
 	Status* status = Status::instance();
@@ -938,6 +979,10 @@ int main(int argc, char *argv[])
 		std::cout << "[done]" << std::endl << ":: " << g_config.getString(ConfigManager::SERVER_NAME) << " Running..." << std::endl;
 		accept_errors = 0;
 		while(g_game.getGameState() != GAME_STATE_SHUTDOWN && accept_errors < 100){
+#ifdef __TLM_SERVER_SAVE__
+			if(g_shutdownRequested)
+				g_game.shutdownServer(0);
+#endif
 			fd_set listen_set;
 			timeval tv;
 			FD_ZERO(&listen_set);

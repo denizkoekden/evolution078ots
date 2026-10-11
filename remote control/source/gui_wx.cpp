@@ -236,7 +236,8 @@ MainFrame::MainFrame()
 
 void MainFrame::appendConsole(const std::string& message)
 {
-	m_console->AppendText(wxString::FromUTF8(message.c_str()));
+	// the server speaks Latin-1 (like the 7.x client); FromUTF8 would drop such lines
+	m_console->AppendText(wxString(message.c_str(), wxConvISO8859_1));
 	m_console->AppendText("\n");
 }
 
@@ -248,7 +249,10 @@ bool MainFrame::prompt(const wxString& caption, const wxString& message, std::st
 	const wxString value = dlg.GetValue();
 	if(value.empty())
 		return false;
-	out = value.ToStdString();
+	const wxCharBuffer latin1 = value.mb_str(wxConvISO8859_1);
+	if(!latin1.data() || !*latin1.data())
+		return false;   // not representable in Latin-1
+	out = latin1.data();
 	return true;
 }
 

@@ -624,6 +624,7 @@ ContainerVector::const_iterator Player::closeContainer(unsigned char cid)
   for(ContainerVector::iterator cl = containerVec.begin(); cl != containerVec.end(); ++cl)
 	  if(cl->first == cid)
 			return containerVec.erase(cl);
+  return containerVec.end();
 }
 #else
 void Player::closeContainer(uint32_t cid)
@@ -2351,6 +2352,7 @@ bool Player::__removeThing(Thing* thing, uint32_t count)
 		item->setParent(NULL);
 		inventory[index] = NULL;
 	}
+	return RET_NOERROR;
 }
 
 int32_t Player::__getIndexOfThing(const Thing* thing) const

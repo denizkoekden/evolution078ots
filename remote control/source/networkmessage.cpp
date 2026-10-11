@@ -76,7 +76,7 @@ bool NetworkMessage::ReadFromSocket(SOCKET socket)
 #else
 		errnum = errno;
 #endif
-		if(errnum == EWOULDBLOCK){
+		if(errnum == OTADMIN_EWOULDBLOCK){
 			m_MsgSize = 0;
 			return true;
 		}
@@ -151,7 +151,7 @@ bool NetworkMessage::WriteToSocket(SOCKET socket)
 #else
 			errnum = errno;
 #endif
-			if(errnum == EWOULDBLOCK){
+			if(errnum == OTADMIN_EWOULDBLOCK){
 				b = 0;
 				OTSYS_SLEEP(10);
 				retry++;

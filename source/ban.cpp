@@ -294,6 +294,7 @@ std::string Ban::getReason(SOCKET s)
 			}
 		}
 	}
+	return "";
 }
 
 std::string Ban::getReason(const std::string& name)
@@ -311,6 +312,7 @@ std::string Ban::getReason(const std::string& name)
 			}
 		}
 	}
+	return "";
 }
 
 std::string Ban::getReason(const unsigned long account)
@@ -323,6 +325,7 @@ std::string Ban::getReason(const unsigned long account)
 			}
 		}
 	}
+	return "";
 }
 
 const IpBanList& Ban::getIpBans()

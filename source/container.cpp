@@ -604,6 +604,7 @@ bool Container::__removeThing(Thing* thing, uint32_t count)
 		item->setParent(NULL);
 		itemlist.erase(cit);
 	}
+	return RET_NOERROR;
 }
 
 int32_t Container::__getIndexOfThing(const Thing* thing) const

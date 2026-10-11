@@ -980,6 +980,7 @@ bool Tile::__removeThing(Thing* thing, uint32_t count)
 			}
 		}
 	}
+	return RET_NOTPOSSIBLE;
 }
 
 int32_t Tile::__getIndexOfThing(const Thing* thing) const

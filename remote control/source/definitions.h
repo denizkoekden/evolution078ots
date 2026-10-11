@@ -36,7 +36,8 @@
 #include <ws2tcpip.h>
 #include <windows.h>
 
-#define EWOULDBLOCK WSAEWOULDBLOCK
+// own name: redefining the C errno EWOULDBLOCK breaks modern libstdc++
+#define OTADMIN_EWOULDBLOCK WSAEWOULDBLOCK
 
 #ifndef __GNUC__
 #pragma comment( lib, "Ws2_32.lib" )
@@ -85,6 +86,8 @@ inline void OTSYS_SLEEP(uint32_t t){
 #ifndef WSAGetLastError
 #define WSAGetLastError() (errno)
 #endif
+
+#define OTADMIN_EWOULDBLOCK EWOULDBLOCK
 
 inline void OTSYS_SLEEP(int t)
 {

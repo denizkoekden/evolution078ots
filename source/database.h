@@ -129,12 +129,11 @@ private:
     //friend class Database;
 	#ifdef __USE_MYSQL__
 	friend class DatabaseMySQL;
-	void addRow(MYSQL_ROW r, unsigned long* lengths, unsigned int num_fields);
 	#endif
 	#ifdef __USE_SQLITE__
 	friend class DatabaseSqLite;
-	void addRow(char **results, unsigned int num_fields);
 	#endif
+	void addRow(char** values, unsigned long* lengths, unsigned int num_fields);
 	void clear();
 	//void clearRows();
 	//void clearFieldNames();
@@ -217,6 +216,8 @@ public:
 	DATABASE_VIRTUAL bool rollback(){return false;};
 	DATABASE_VIRTUAL bool commit(){return false;};
 
+	DATABASE_VIRTUAL bool isSQLite(){return false;};
+
 	/** Escape the special characters in a string for no problems with the query
 	*\returns The string modified
 	*\param s The source string
@@ -228,6 +229,12 @@ public:
 	*\param s The source string
 	*/
 	static std::string escapeString(const char* s, unsigned long size);
+
+	/** Quote binary data as a complete SQL literal (including the quotes)
+	*\returns The literal
+	*\param s The source data
+	*/
+	static std::string escapeBlob(const char* s, unsigned long size);
 
 protected:
 	_Database(){};

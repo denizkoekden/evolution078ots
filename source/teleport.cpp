@@ -174,7 +174,7 @@ void Teleport::__replaceThing(uint32_t index, Thing* thing)
 
 bool Teleport::__removeThing(Thing* thing, uint32_t count)
 {
-	//
+	return RET_NOTPOSSIBLE;
 }
 
 void Teleport::postAddNotification(Thing* thing, int32_t index, cylinderlink_t link /*= LINK_OWNER*/)

@@ -6,6 +6,8 @@ name: build & release
 #
 # Toolchains: Linux = GCC, macOS = Clang, Windows = MinGW-w64 (MSYS2) — the modern
 # successor of the original Dev-C++ MinGW build. Storage backends via -DSTORAGE=.
+# Linux is built in an Ubuntu 22.04 container (glibc 2.35) so the package also runs on
+# older distributions; sqlite/xml packages are smoke-tested before they are zipped.
 
 on:
   push:
@@ -18,6 +20,105 @@ permissions:
   contents: write   # needed for creating the Release on tags
 
 jobs:
+  build-linux:
+    name: linux (${{ matrix.storage }})
+    runs-on: ubuntu-latest
+    container: ubuntu:22.04
+    env:
+      DEBIAN_FRONTEND: noninteractive
+    defaults:
+      run:
+        shell: bash
+    strategy:
+      fail-fast: false
+      matrix:
+        storage: [ sqlite, xml, mysql ]
+
+    steps:
+      - name: Install dependencies
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends \
+            ca-certificates git cmake ninja-build g++ patchelf zip python3 \
+            libxml2-dev libboost-regex-dev libgmp-dev libsqlite3-dev \
+            default-libmysqlclient-dev
+
+      - uses: actions/checkout@v4
+
+      - name: Configure
+        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DSTORAGE=${{ matrix.storage }}
+
+      - name: Build
+        run: cmake --build build --parallel
+
+      - name: Stage package
+        run: cmake --install build --prefix dist
+
+      - name: Bundle shared libraries
+        run: |
+          mkdir -p dist/lib
+          ldd dist/evolutions | awk '/=>/ {print $3}' | while read -r so; do
+            [ -e "$so" ] || continue
+            case "$(basename "$so")" in
+              libc.so*|libm.so*|libpthread.so*|libdl.so*|librt.so*|ld-linux*|libresolv.so*) ;;
+              *) cp -vL "$so" dist/lib/ ;;
+            esac
+          done
+          patchelf --set-rpath '$ORIGIN/lib' dist/evolutions
+          printf '#!/bin/sh\ncd "$(dirname "$0")"\nexec ./evolutions "$@"\n' > dist/run.sh
+          chmod +x dist/run.sh dist/evolutions
+
+      # On a copy, so the package keeps its pristine data; the server refuses to run as root.
+      - name: Smoke test (status query, SIGTERM -> save -> exit 0)
+        if: matrix.storage != 'mysql'
+        run: |
+          useradd --create-home smoke
+          cp -a dist /tmp/smoke
+          chown -R smoke /tmp/smoke
+          runuser -u smoke -- tools/smoke-test.sh /tmp/smoke
+
+      - name: Add package README
+        run: |
+          cat > dist/README-PACKAGE.txt <<EOF
+          OpenTibia Server - Evolution 0.7.8 (modernized)
+          Platform: linux   Storage backend: ${{ matrix.storage }}
+
+          HOW TO RUN
+            ./run.sh   (or ./evolutions); needs glibc 2.35 or newer (Ubuntu 22.04, Debian 12, ...)
+
+          The server reads ./config.lua and the ./data folder from this directory.
+          Default login/game port: 7171.
+
+          STORAGE = ${{ matrix.storage }}
+            sqlite : ready to run, uses the bundled db.s3db
+            xml    : ready to run, file-based storage under data/
+            mysql  : needs a running MySQL/MariaDB server; import database.sql and
+                     set sql_host/sql_user/sql_pass/sql_db in config.lua
+          EOF
+
+      - name: Create zip
+        run: |
+          VER="${{ github.ref_name }}"; VER="${VER#v}"   # tag v0.7.9-bugfix -> 0.7.9-bugfix; branch -> branch name
+          PKG="evolution-${VER}-linux-${{ matrix.storage }}"
+          mv dist "$PKG"
+          zip -r "$PKG.zip" "$PKG"
+          echo "PKG=$PKG" >> "$GITHUB_ENV"
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.PKG }}
+          path: ${{ env.PKG }}.zip
+          if-no-files-found: error
+
+      - name: Attach to GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ env.PKG }}.zip
+          fail_on_unmatched_files: true
+          prerelease: ${{ contains(github.ref_name, '-') }}
+
   build:
     name: ${{ matrix.label }} (${{ matrix.storage }})
     runs-on: ${{ matrix.os }}
@@ -28,9 +129,6 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { os: ubuntu-latest,  label: linux,   storage: sqlite, shell: bash }
-          - { os: ubuntu-latest,  label: linux,   storage: xml,    shell: bash }
-          - { os: ubuntu-latest,  label: linux,   storage: mysql,  shell: bash }
           - { os: macos-latest,   label: macos,   storage: sqlite, shell: bash }
           - { os: macos-latest,   label: macos,   storage: xml,    shell: bash }
           - { os: macos-latest,   label: macos,   storage: mysql,  shell: bash }
@@ -41,17 +139,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # --------------------------------------------------------- deps: Linux
-      - name: Install dependencies (Linux)
-        if: runner.os == 'Linux'
-        shell: bash
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
-            cmake ninja-build g++ patchelf zip \
-            libxml2-dev libboost-regex-dev libgmp-dev libsqlite3-dev \
-            default-libmysqlclient-dev
-
       # --------------------------------------------------------- deps: macOS
       - name: Install dependencies (macOS)
         if: runner.os == 'macOS'
@@ -59,6 +146,8 @@ jobs:
         run: |
           brew update
           brew install ninja boost gmp libxml2 sqlite mysql-client dylibbundler || true
+          # `|| true` tolerates brew's link warnings; still fail if a formula is missing
+          brew list --versions ninja boost gmp libxml2 sqlite mysql-client dylibbundler
 
       # ------------------------------------------------ deps: Windows (MSYS2)
       - name: Set up MSYS2 / MinGW-w64 (Windows)
@@ -88,22 +177,6 @@ jobs:
       - name: Stage package
         run: cmake --install build --prefix dist
 
-      # ---------------------------------------------------- bundle deps: Linux
-      - name: Bundle shared libraries (Linux)
-        if: runner.os == 'Linux'
-        run: |
-          mkdir -p dist/lib
-          ldd dist/evolutions | awk '/=>/ {print $3}' | while read -r so; do
-            [ -e "$so" ] || continue
-            case "$(basename "$so")" in
-              libc.so*|libm.so*|libpthread.so*|libdl.so*|librt.so*|ld-linux*|libresolv.so*) ;;
-              *) cp -vL "$so" dist/lib/ ;;
-            esac
-          done
-          patchelf --set-rpath '$ORIGIN/lib' dist/evolutions
-          printf '#!/bin/sh\ncd "$(dirname "$0")"\nexec ./evolutions "$@"\n' > dist/run.sh
-          chmod +x dist/run.sh dist/evolutions
-
       # ---------------------------------------------------- bundle deps: macOS
       - name: Bundle dylibs (macOS)
         if: runner.os == 'macOS'
@@ -111,6 +184,13 @@ jobs:
           dylibbundler -od -b -x dist/evolutions -d dist/libs -p @executable_path/libs
           printf '#!/bin/sh\ncd "$(dirname "$0")"\nexec ./evolutions "$@"\n' > dist/run.sh
           chmod +x dist/run.sh dist/evolutions
+
+      # On a copy, so the package keeps its pristine data.
+      - name: Smoke test (macOS; status query, SIGTERM -> save -> exit 0)
+        if: runner.os == 'macOS' && matrix.storage != 'mysql'
+        run: |
+          cp -R dist "$RUNNER_TEMP/smoke"
+          tools/smoke-test.sh "$RUNNER_TEMP/smoke"
 
       # ------------------------------------------- bundle deps: Windows (MinGW)
       - name: Bundle DLLs (Windows / MinGW)
@@ -137,7 +217,7 @@ jobs:
             macOS   : ./run.sh   (or ./evolutions)   [right-click > Open the first time]
 
           The server reads ./config.lua and the ./data folder from this directory.
-          Default login/game port: 7171 / 7172.
+          Default login/game port: 7171.
 
           STORAGE = ${{ matrix.storage }}
             sqlite : ready to run, uses the bundled db.s3db

@@ -31,14 +31,20 @@ CREATE TABLE `bans` (
   `player` varchar(32) NOT NULL default '0',
   `account` int(10) unsigned NOT NULL default '0',
   `time` int(10) unsigned NOT NULL default '0',
-  `reason` varchar(50) NOT NULL
+  `reason` varchar(50) NOT NULL default ''
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+
+CREATE TABLE `blessings` (
+  `player` int(11) NOT NULL default '0',
+  `id` int(11) NOT NULL default '0',
+  KEY `player` (`player`)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1;
 
 CREATE TABLE `commands` (
-  `id` int(11) NOT NULL,
-  `date` varchar(25) collate latin1_general_ci NOT NULL,
-  `player` varchar(32) collate latin1_general_ci NOT NULL,
-  `command` varchar(50) collate latin1_general_ci NOT NULL
+  `id` int(11) NOT NULL default '0',
+  `date` varchar(25) collate latin1_general_ci NOT NULL default '',
+  `player` varchar(32) collate latin1_general_ci NOT NULL default '',
+  `command` varchar(50) collate latin1_general_ci NOT NULL default ''
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1 COLLATE=latin1_general_ci;
 
 CREATE TABLE `deathlist` (
@@ -88,7 +94,7 @@ CREATE TABLE `items` (
   `actionid` int(5) NOT NULL default '0',
   `duration` int(11) NOT NULL default '0',
   `charges` int(11) NOT NULL default '0',
-  `decaystate` int(11) NOT NULL,
+  `decaystate` int(11) NOT NULL default '0',
   `text` text NOT NULL,
   `specialdesc` text NOT NULL,
   KEY `player` (`player`)
@@ -135,8 +141,8 @@ CREATE TABLE `players` (
   `save` int(11) unsigned NOT NULL default '1',
   `redskulltime` int(11) unsigned NOT NULL default '0',
   `redskull` tinyint(1) unsigned NOT NULL default '0',
-  `comment` varchar(255) NOT NULL,
-  `hide` tinyint(1) NOT NULL,
+  `comment` varchar(255) NOT NULL default '',
+  `hide` tinyint(1) NOT NULL default '0',
   UNIQUE KEY `id` (`id`),
   KEY `name` (`name`)
 ) ENGINE=MyISAM  DEFAULT CHARSET=latin1 AUTO_INCREMENT=4 ;
@@ -154,8 +160,8 @@ CREATE TABLE `playerstorage` (
 
 CREATE TABLE `reports` (
   `id` int(11) unsigned NOT NULL auto_increment,
-  `date` varchar(25) collate latin1_general_ci NOT NULL,
-  `report` varchar(150) collate latin1_general_ci NOT NULL,
+  `date` varchar(25) collate latin1_general_ci NOT NULL default '',
+  `report` varchar(150) collate latin1_general_ci NOT NULL default '',
   PRIMARY KEY  (`id`)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1 COLLATE=latin1_general_ci AUTO_INCREMENT=1 ;
 
@@ -190,8 +196,8 @@ INSERT INTO `skills` VALUES (3, 1, 10, 0);
 INSERT INTO `skills` VALUES (3, 0, 10, 0);
 
 CREATE TABLE `spells` (
-  `player` int(11) NOT NULL,
-  `spell` varchar(50) collate latin1_general_ci NOT NULL
+  `player` int(11) NOT NULL default '0',
+  `spell` varchar(50) collate latin1_general_ci NOT NULL default ''
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1 COLLATE=latin1_general_ci;
 
 CREATE TABLE `tileitems` (
@@ -199,7 +205,7 @@ CREATE TABLE `tileitems` (
   `sid` int(11) NOT NULL default '0',
   `pid` int(11) NOT NULL default '0',
   `type` int(11) NOT NULL default '0',
-  `number` tinyint(4) NOT NULL,
+  `number` tinyint(4) NOT NULL default '0',
   `attributes` blob,
   KEY `tileid` (`tileid`)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1;

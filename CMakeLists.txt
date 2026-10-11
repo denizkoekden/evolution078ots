@@ -1,8 +1,8 @@
 ###############################################################################
 # OpenTibia Server "Evolution 0.7.8" — modern, portable CMake build
 #
-# Goal: build the ORIGINAL source on modern GCC / Clang / MSVC across
-#       Windows, Linux and macOS, with 1:1 runtime behaviour preserved.
+# Goal: build the ORIGINAL source on modern GCC / Clang (MinGW-w64 on Windows)
+#       across Windows, Linux and macOS, with 1:1 runtime behaviour preserved.
 #
 # The authoritative build manifest is source/dev-C++/Makefile.win (the original
 # Dev-C++ project). The autotools files (Makefile.am / configure.in / ...) are
@@ -173,11 +173,14 @@ if(WIN32)
 endif()
 
 # Conservative 1:1 safety: the original GCC 3.4 did not do aggressive
-# strict-aliasing optimization. The code type-puns the wire protocol buffers;
-# disable strict-aliasing project-wide so behaviour matches the original until
-# the memcpy remediation (step 8) lands.
+# strict-aliasing optimization, and the code type-puns the wire protocol buffers.
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
     target_compile_options(evolutions PRIVATE -fno-strict-aliasing)
+endif()
+
+# Falling off the end of a non-void function is UB that modern GCC turns into crashes.
+if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+    target_compile_options(evolutions PRIVATE -Werror=return-type)
 endif()
 
 if(WARNINGS_AS_ERRORS)
@@ -196,8 +199,11 @@ find_package(LibXml2 REQUIRED)
 target_link_libraries(evolutions PRIVATE LibXml2::LibXml2)
 
 # --- Boost (always: regex compiled; bind/function/tokenizer/pool header-only)-
+if(POLICY CMP0167)
+    cmake_policy(SET CMP0167 NEW)    # use Boost's own BoostConfig.cmake
+endif()
 find_package(Boost REQUIRED COMPONENTS regex)
-target_link_libraries(evolutions PRIVATE Boost::regex Boost::boost)
+target_link_libraries(evolutions PRIVATE Boost::regex Boost::headers)
 # No call site uses boost::bind placeholders -> silence the global-placeholder
 # deprecation without changing behaviour.
 target_compile_definitions(evolutions PRIVATE BOOST_BIND_GLOBAL_PLACEHOLDERS)
@@ -223,9 +229,11 @@ endif()
 # --- SQLite (optional) ------------------------------------------------------
 if(USE_SQLITE)
     find_package(SQLite3 REQUIRED)
-    # Use the long-standing target name SQLite::SQLite3 (present on every CMake that
-    # ships FindSQLite3; the SQLite3::SQLite3 alias only exists on very new CMake).
-    target_link_libraries(evolutions PRIVATE SQLite::SQLite3)
+    if(TARGET SQLite3::SQLite3)      # CMake >= 4.1; SQLite::SQLite3 is deprecated there
+        target_link_libraries(evolutions PRIVATE SQLite3::SQLite3)
+    else()
+        target_link_libraries(evolutions PRIVATE SQLite::SQLite3)
+    endif()
 endif()
 
 # --- MySQL / MariaDB client (optional) --------------------------------------

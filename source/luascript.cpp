@@ -1258,8 +1258,9 @@ int LuaScriptInterface::internalGetPlayerInfo(lua_State *L, PlayerInfo_t info)
 			value = player->getGUID();
 			break;
 		default:
-			std::string error_str = "Unknown player info. info = " + info;
-			reportErrorFunc(error_str);
+			std::stringstream error_str;
+			error_str << "Unknown player info. info = " << info;
+			reportErrorFunc(error_str.str());
 			value = 0;
 			break;		
 		}

@@ -1,14 +1,15 @@
-# Build PUC-Rio Lua 5.1 as a static library from the tarball bundled in the
-# repository (source/libraries/lua-5.1.tar.gz). Vendoring guarantees byte-for-byte
+# Build PUC-Rio Lua 5.1.5 (the last 5.1 bugfix release; the original was built
+# against 5.1.2) as a static library from the tarball bundled in the repository
+# (source/libraries/lua-5.1.5.tar.gz). Vendoring guarantees byte-for-byte
 # identical Lua semantics on Windows, Linux and macOS — the strongest 1:1 guarantee
 # — and avoids the fact that lua5.1 is no longer packaged on some platforms.
 #
 # Produces the target: lua51  (with its src/ dir as a SYSTEM include directory)
 
-set(_LUA_TARBALL "${CMAKE_SOURCE_DIR}/source/libraries/lua-5.1.tar.gz")
-set(_LUA_SHA256  "7f5bb9061eb3b9ba1e406a5aa68001a66cb82bac95748839dc02dd10048472c1")
+set(_LUA_TARBALL "${CMAKE_SOURCE_DIR}/source/libraries/lua-5.1.5.tar.gz")
+set(_LUA_SHA256  "2640fc56a795f29d28ef15e13c34a47e223960b0240e8cb0a82d9b0738695333")
 set(_LUA_DEST    "${CMAKE_BINARY_DIR}/_vendored")
-set(_LUA_SRC     "${_LUA_DEST}/lua-5.1/src")
+set(_LUA_SRC     "${_LUA_DEST}/lua-5.1.5/src")
 
 if(NOT EXISTS "${_LUA_TARBALL}")
     message(FATAL_ERROR "Vendored Lua tarball missing: ${_LUA_TARBALL}")

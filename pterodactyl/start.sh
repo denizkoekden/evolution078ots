@@ -6,8 +6,20 @@
 cd /home/container
 C=config.lua
 
-sstr() { [ -z "$2" ] || sed -i "s|^[[:space:]]*$1[[:space:]]*=.*|$1 = \"$2\"|" "$C"; }   # string value
-snum() { [ -z "$2" ] || sed -i "s|^[[:space:]]*$1[[:space:]]*=.*|$1 = $2|"     "$C"; }   # numeric value
+# String values are escaped for the Lua "..." literal (\ and "), then for sed (\ & |).
+sstr() {   # string value
+    [ -z "$2" ] && return
+    local esc
+    esc=$(printf '%s' "$2" | tr -d '\r\n' | sed -e 's/[\\"]/\\&/g' -e 's/[&|\\]/\\&/g')
+    sed -i "s|^[[:space:]]*$1[[:space:]]*=.*|$1 = \"${esc}\"|" "$C"
+}
+snum() {   # numeric value
+    [ -z "$2" ] && return
+    case "$2" in
+        *[!0-9]*) echo ":: ignoring non-numeric $1='$2'" ;;
+        *) sed -i "s|^[[:space:]]*$1[[:space:]]*=.*|$1 = $2|" "$C" ;;
+    esac
+}
 
 # Network: bind port comes from the Pterodactyl allocation; PUBLIC_IP is what the
 # login server advertises to clients (set it to your node's public IP for remote play).

@@ -74,6 +74,8 @@ public:
     virtual bool rollback();
 	virtual bool commit();
 
+	virtual bool isSQLite(){return true;};
+
 private:
 
 	/** initialize the DatabaseSqLite
@@ -82,12 +84,10 @@ private:
 	* 	FALSE if the DatabaseSqLite was not successfully initialized
 	*/
 	bool init();
-    static int callback(void *db, int argc, char **argv, char **azColName);
+	bool prepare(const std::string& query, sqlite3_stmt*& stmt);
 
 	bool m_initialized;
 	bool m_connected;
-	static bool m_fieldnames;
-	char *zErrMsg;
 	sqlite3 *m_handle;
 };
 
