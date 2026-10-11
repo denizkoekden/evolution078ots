@@ -287,6 +287,8 @@ OTSYS_THREAD_RETURN listOnline(void* Data){
       int seconds = /*mins*/ 2 * /*time count*/ (1000*60);
       int total = 0;
       std::string info;
+      Game* game = (Game*)Data;
+      OTSYS_THREAD_LOCK(game->gameLock, "listOnline()"); // logins/logouts change the list from other threads
       AutoList<Player>::listiterator iter = Player::listPlayer.list.begin();
       if(iter != Player::listPlayer.list.end() && (*iter).second){ // end() guard: original deref'd begin() on an empty map (UB; "worked" by luck on the old STL)
          info =  "Players online: " + (*iter).second->getName();
@@ -305,6 +307,7 @@ OTSYS_THREAD_RETURN listOnline(void* Data){
       }
       else
          info = "No players online.";
+      OTSYS_THREAD_UNLOCK(game->gameLock, "listOnline()");
 
       std::stringstream file;
       std::string datadir = g_config.getString(ConfigManager::DATA_DIRECTORY);
