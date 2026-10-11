@@ -904,7 +904,7 @@ void ItemAttributes::setIntAttr(itemAttrTypes type, uint32_t value)
 	
 	Attribute* attr = getAttr(type);
 	if(attr){
-		attr->value = (void*)value;
+		attr->value = (void*)(intptr_t)value;
 	}
 }
 
