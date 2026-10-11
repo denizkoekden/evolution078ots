@@ -10,9 +10,8 @@
 --   * `int(11)`/`tinyint`/`unsigned` -> SQLite affinity types (INTEGER/...).
 --   * `... auto_increment` + `UNIQUE KEY id` -> `INTEGER PRIMARY KEY AUTOINCREMENT`.
 --   * inline MySQL `KEY name (col)` / `USING BTREE` -> separate CREATE INDEX.
---   * NEW table `blessings(player, id)`: queried by source/ioplayersql.cpp
---     (SELECT/DELETE/INSERT) but missing from database.sql — without it the
---     player load fails and the client is rejected on login.
+--   * table `blessings(player, id)` (used by source/ioplayersql.cpp) was missing
+--     from the original database.sql; both schemas have it now.
 --
 -- Regenerate db.s3db from this file with:
 --   sqlite3 source/db.s3db < database.sqlite.sql   (then load the seed data)

@@ -55,8 +55,11 @@ bool DatabaseMySQL::init()
 	if(mysql_init(&m_handle) == NULL){
 		std::cout << "MYSQL ERROR mysql_init" << std::endl;
 	}
-	else
+	else{
+		// the 2007 queries assume the non-strict mode of MySQL 5.0, not the strict default of modern servers
+		mysql_options(&m_handle, MYSQL_INIT_COMMAND, "SET SESSION sql_mode='NO_ENGINE_SUBSTITUTION'");
 		m_initialized = true;
+	}
 
 	return m_initialized;
 }
