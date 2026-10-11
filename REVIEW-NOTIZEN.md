@@ -532,6 +532,7 @@ Basis ist `master`, ein Commit pro Befund. Der Branch ist **weder gepusht noch g
 | H3, M6 | `99b372d` | Reinstall-Schutz, zweistufiges Escaping | Kopierlogik isoliert; Escaping mit BSD- und GNU-`sed` plus Lua 5.1 |
 | H4, M7 | `4890723` | CI: `ubuntu:22.04`-Container, Smoke-Tests, brew-Prüfung | CI-Schritte lokal in `ubuntu:22.04` nachgestellt; Binary braucht GLIBC_2.34 |
 | M10 | `9974f3e` | Remote-Control: eigenes Makro, Latin-1 | Build gegen wxWidgets 3.3 (macOS); GUI nicht gestartet |
+| M4 | `69fc156` | Eigene Socket-Kopie pro Verbindungs-Thread (auch auf `bugfixes`: `e8a7866`) | 300 parallele Status-Abfragen: vorher 215–219/300, danach 300/300 |
 | Niedrig | `97e35ef` | `intptr_t`-Cast, String + Enum | mit `-Wall` keine dieser Warnungen mehr |
 
 **Abweichungen vom ursprünglichen Plan:**
@@ -555,9 +556,9 @@ Basis ist `master`, ein Commit pro Befund. Der Branch ist **weder gepusht noch g
   `master`-Fassung. In `release.yml` bleibt die Versionierung von `bugfixes` und gilt jetzt auch für den
   Linux-Job.
 - Auf `bugfixes` liegen zusätzlich M3 (`listOnline` unter `gameLock`) und M4 (eigene Socket-Kopie pro Thread).
-- **M4 gemessen:** 300 parallele Status-Abfragen werden mit dem Fix 300/300 beantwortet, auf `master` nur
-  215–219/300. Das betrifft jede fünfte Verbindung eines Schwalls, etwa Logins nach einem Neustart. Deshalb
-  spricht viel dafür, M4 auch nach `master` zu übernehmen. **Offen, deine Entscheidung.**
+- **M4 gemessen:** 300 parallele Status-Abfragen werden mit dem Fix 300/300 beantwortet, ohne ihn nur
+  215–219/300. Das betrifft jede fünfte Verbindung eines Schwalls, etwa Logins nach einem Neustart. Deshalb ist
+  M4 auf deinen Wunsch auch nach `master` übernommen (`69fc156`). Nur M3 bleibt `bugfixes`-exklusiv.
 - `CRASHFIXES.md` auf `bugfixes`: #10 und #11 ergänzt, #7 als Mechanik-Änderung benannt.
 
 **Weiter offen:**
