@@ -77,24 +77,40 @@ im Code begründet. Als Fundament ist das brauchbar.
 
 ### Kritisch
 
-#### K1 – SQLite-Backend (Standard!): falsches Escaping, also SQL-Injection-Risiko · [Code] · Altlast, durch „SQLite als Standard“ aktiviert
+#### K1 – SQLite-Backend (Standard!): kaputtes Escaping, Saves scheitern, Daten werden verfälscht · [verifiziert per Unit-Test] · Altlast, durch „SQLite als Standard“ aktiviert
 
-- [source/database.cpp:266](source/database.cpp#L266): `escape_string()` macht aus `'` ein `\'`. SQLite kennt
-  kein Backslash-Escaping. Dort beendet `'` das String-Literal trotzdem; korrekt wäre `''`.
-- [source/databasesqlite.cpp:82](source/databasesqlite.cpp#L82) und
+> **Korrektur nach Test:** In der ersten Fassung stand hier „SQL-Injection wahrscheinlich“. Der Test zeigt etwas
+> anderes. `escape_string()` setzt das Escape-Zeichen *hinter* das Zeichen: Aus `'` wird `'\`, aus einem
+> Zeilenumbruch `n\`. In SQLite folgt auf jedes eingeschleuste `'` also ein `\`, und das ist immer ein
+> Syntaxfehler. Eine Injection ist im reinen SQLite-Build damit praktisch ausgeschlossen. Die tatsächliche Folge
+> ist **Datenverlust**.
+
+- **Escaping:** [source/database.cpp:266](source/database.cpp#L266) `escape_string()` passt nicht zu SQLite.
+  Korrekt wäre, `'` zu `''` zu verdoppeln.
+- **Ausführung:** [source/databasesqlite.cpp:82](source/databasesqlite.cpp#L82) und
   [:106](source/databasesqlite.cpp#L106) nutzen `sqlite3_exec`. Das führt mehrere `;`-getrennte Statements aus.
-- Spielerkontrollierte Strings laufen durch diesen Pfad:
+- **Betroffene Strings:**
   - Item-Texte, also Briefe und Bücher ([ioplayersql.cpp:429](source/ioplayersql.cpp#L429) ff.)
   - Haus-Zugangslisten ([iomapserializesql.cpp:415](source/iomapserializesql.cpp#L415) ff.)
   - Report-Texte ([ioplayersql.cpp:729](source/ioplayersql.cpp#L729))
-- **Folge:** Eingeloggte Spieler können vermutlich beliebiges SQL gegen die DB ausführen. Das ist nur aus dem Code
-  bewertet; ausgenutzt oder getestet habe ich es nicht.
+- **Folge 1:** Ein einziger Apostroph genügt (ein Brief mit „Don't…“). Das INSERT wird zum Syntaxfehler,
+  `savePlayer` bricht ab, und SQLite rollt den **kompletten Save** zurück. Dieser Spieler wird nie wieder
+  gespeichert, solange er das Item trägt. Für Häuser gilt dasselbe.
+- **Folge 2:** Zeilenumbrüche werden zu `n\` verfälscht, und Backslashes verdoppeln sich bei jedem Save.
+- **Folge 3:** Der Blob-Pfad schneidet Binärdaten am ersten Null-Byte ab (`std::string(s)`) und liest per `strlen`.
+  Haus-Item-Attribute werden dadurch beschädigt.
+- **Injection** ist real nur im Build `mysql+sqlite` mit SQLite zur Laufzeit. Dort wird `mysql_escape_string`
+  benutzt, und `'` *beendet* in SQLite das Literal (M5).
 - **Hintergrund:** Laut dem Kommentar der Modernisierung in `databasesqlite.h` wurde der SQLite-Pfad im Original nie
   kompiliert. Die Modernisierung hat ihn zum Standard gemacht, ohne ihn zu prüfen.
-- **Fix:** Prepared Statements (`sqlite3_prepare_v2` + `sqlite3_bind_*`). Als Minimal-Fix:
-  - korrektes Quoting (`''` bzw. `sqlite3_mprintf("%q")`) und
-  - `sqlite3_prepare_v2`/`sqlite3_step` statt `sqlite3_exec`; das führt nur ein Statement aus.
-- Im `mysql+sqlite`-Build ist es ähnlich, siehe M5.
+- **Nachweis:** Ein Unit-Test gegen die echte DB-Schicht (Text mit `'`, `"`, `\`; Blob mit Null-Bytes) besteht auf
+  dem Fix-Branch und scheitert auf `master` („unrecognized token: \“).
+- **Fix (umgesetzt):**
+  - `sqlite3_prepare_v2`/`sqlite3_step`, genau ein Statement pro Aufruf
+  - Werte mit echter Länge
+  - `''`-Quoting
+  - Blobs als `X'..'`
+  - Escaping zur Laufzeit je nach aktivem Backend
 
 #### K2 – Ausgelieferter GM-Account mit bekanntem Standardpasswort · [verifiziert] · Altlast, durch das Deployment-Tooling relevant
 
@@ -452,7 +468,7 @@ unvollständig. Beim Lesen der `.md`-Dateien gezielt gegenprüfen:
 - Die Remote-Control habe ich nicht gegen einen laufenden Server getestet.
 - Ob die gebündelten macOS-Binaries korrekt signiert sind, ist offen.
 - Den Inhalt von `data/` (Skripte, Monster, NPCs) habe ich nur auf Pfade geprüft.
-- K1 ist nur aus dem Code bewertet; ausgenutzt oder getestet habe ich es nicht.
+- K1 ist inzwischen per Unit-Test gegen die DB-Schicht bestätigt (Datenverlust statt Injection, siehe Korrektur in K1).
 
 ---
 

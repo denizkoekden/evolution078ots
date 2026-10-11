@@ -380,12 +380,9 @@ bool IOPlayerSQL::savePlayer(Player* player)
 	query << "`redskull` = " << redSkull << " ";
 	#endif
 
-	query << " WHERE `id` = "<< player->getGUID()
-	#ifndef __USE_SQLITE__
-	<<" LIMIT 1";
-    #else
-    ;
-    #endif
+	query << " WHERE `id` = "<< player->getGUID();
+	if(!mysql->isSQLite())
+		query << " LIMIT 1";
 
 	if(!mysql->executeQuery(query))
 		return false;
@@ -747,12 +744,8 @@ bool IOPlayerSQL::createPlayer(Player* player)
 	}
 	
 	DBQuery query;
-	#ifdef __USE_SQLITE__
-	// SQLite only auto-assigns the rowid for NULL; a literal 0 is stored verbatim.
+	// NULL makes MySQL and SQLite assign the next id; SQLite would store a literal 0.
 	query << "INSERT INTO `players` (`id`, `name`, `account`) VALUES (NULL, '" << player->getName() << "', '" << player->getAccount() << "')";
-	#else
-	query << "INSERT INTO `players` (`id`, `name`, `account`) VALUES ('" << 0 << "', '" << player->getName() << "', '" << player->getAccount() << "')";
-	#endif
 
 	if(!mysql->executeQuery(query)){
 		return false;

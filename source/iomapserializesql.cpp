@@ -144,7 +144,7 @@ bool IOMapSerializeSQL::saveTile(Database* db, uint32_t tileId, const Tile* tile
 		attributes = propWriteStream.getStream(attribSize);
 
 		streamitems << "(" << tileId << "," << runningID << "," << parentid << "," << item->getID() << ","
-			<< (int)item->getItemCountOrSubtype() << ",'" << Database::escapeString(attributes, attribSize) <<"')";
+			<< (int)item->getItemCountOrSubtype() << "," << Database::escapeBlob(attributes, attribSize) <<")";
 		
 		if(!query_insert.addRow(streamitems.str()))
 			return false;
@@ -188,7 +188,7 @@ bool IOMapSerializeSQL::saveTile(Database* db, uint32_t tileId, const Tile* tile
 			attributes = propWriteStream.getStream(attribSize);
 
 			streamitems << "(" << tileId << "," << runningID << "," << parentid << "," << item->getID() << ","
-				<< (int)item->getItemCountOrSubtype() << ",'" << Database::escapeString(attributes, attribSize) <<"')";
+				<< (int)item->getItemCountOrSubtype() << "," << Database::escapeBlob(attributes, attribSize) <<")";
 				
 			if(!query_insert.addRow(streamitems.str()))
 				return false;

@@ -21,6 +21,7 @@
 
 #include <iostream>
 #include <string>
+#include <cstring>
 #include "database.h"
 
 #ifdef __USE_MYSQL__
@@ -58,8 +59,7 @@ DBResult::~DBResult()
 {
 	clear();
 }
-#ifdef __USE_MYSQL__
-void DBResult::addRow(MYSQL_ROW r, unsigned long* lengths, unsigned int num_fields)
+void DBResult::addRow(char** values, unsigned long* lengths, unsigned int num_fields)
 {
 	RowData* rd = new RowData;
 	rd->row = new char*[num_fields];
@@ -67,7 +67,7 @@ void DBResult::addRow(MYSQL_ROW r, unsigned long* lengths, unsigned int num_fiel
 
 	for(unsigned int i=0; i < num_fields; ++i)
 	{
-		if(r[i] == NULL)
+		if(values[i] == NULL)
 		{
 			rd->row[i] = NULL;
 			rd->length[i] = NULL;
@@ -76,44 +76,15 @@ void DBResult::addRow(MYSQL_ROW r, unsigned long* lengths, unsigned int num_fiel
 
 		unsigned long colLen = lengths[i];
 		rd->row[i] = new char[colLen + 1];
-		rd->length[i] = new unsigned long;
+		rd->length[i] = new unsigned long(colLen);
 
-		memcpy(rd->row[i], r[i], colLen + 1);
-		memcpy(rd->length[i], &lengths[i], sizeof(unsigned long));
+		memcpy(rd->row[i], values[i], colLen);
+		rd->row[i][colLen] = 0;
 	}
 
 	m_listRows[m_numRows] = rd;
 	m_numRows++;
 }
-#endif
-#ifdef __USE_SQLITE__
-void DBResult::addRow(char **results, unsigned int num_fields)
-{
-	RowData* rd = new RowData;
-	rd->row = new char*[num_fields];
-	rd->length = new unsigned long*[num_fields];
-
-	for(unsigned int i=0; i < num_fields; ++i)
-	{
-		if(results[i] == NULL)
-		{
-			rd->row[i] = NULL;
-			rd->length[i] = NULL;
-			continue;
-		}
-
-		unsigned long colLen = strlen(results[i]);
-		rd->row[i] = new char[colLen+1];
-		rd->length[i] = new unsigned long;
-        /*std::cout <<"'"<< colLen <<"' : '" << results[i] <<"'\n";*/
-		memcpy(rd->row[i], results[i], colLen+1);
-		*(rd->length[i]) = colLen;
-	}
-
-	m_listRows[m_numRows] = rd;
-	m_numRows++;
-}
-#endif
 /*
 void DBResult::clearRows()
 {
@@ -147,10 +118,12 @@ void DBResult::clear()
 				delete[] it->second->row[i];
 
 			if(it->second->length[i] != NULL)
-				delete it->second->length[i];   // was delete[] (length[i] = scalar `new unsigned long`)
+				delete it->second->length[i];
 		}
 
-		delete it->second;   // was delete[] (it->second = scalar `new RowData`)
+		delete[] it->second->row;
+		delete[] it->second->length;
+		delete it->second;
 		m_listRows.erase(it++);
 	}
 
@@ -262,76 +235,25 @@ Database* _Database::instance(){
 	return _instance;
 }
 
-#ifndef __USE_MYSQL__
-void escape_string(std::string & s)
+#ifdef __USE_SQLITE__
+// SQLite has no backslash escapes: a quote is doubled, NUL cannot be part of the query text.
+static std::string sqliteEscapeString(const char* s, unsigned long size)
 {
-	if (!s.size()) {
-		return;
+	std::string r;
+	r.reserve(size);
+	for(unsigned long i = 0; i < size; ++i){
+		if(s[i] == '\'')
+			r += "''";
+		else if(s[i] != '\0')
+			r += s[i];
 	}
-
-	for (unsigned int i = 0; i < s.size(); i++) {
-		switch (s[i]) {
-			case '\0':		// Must be escaped for "mysql"
-				s[i] = '\\';
-				s.insert(i, "0", 1);
-				i++;
-				break;
-			case '\n':		// Must be escaped for logs
-				s[i] = '\\';
-				s.insert(i, "n", 1);
-				i++;
-				break;
-			case '\r':
-				s[i] = '\\';
-				s.insert(i, "r", 1);
-				i++;
-				break;
-			case '\\':
-				s[i] = '\\';
-				s.insert(i, "\\", 1);
-				i++;
-				break;
-			case '\"':
-				s[i] = '\\';
-				s.insert(i, "\"", 1);
-				i++;
-				break;
-			case '\'':		// Better safe than sorry
-				s[i] = '\\';
-				s.insert(i, "\'", 1);
-				i++;
-				break;
-			case '\032':	// This gives problems on Win32
-				s[i] = '\\';
-				s.insert(i, "Z", 1);
-				i++;
-				break;
-			default:
-				break;
-		}
-	}
+	return r;
 }
 #endif
 
-std::string _Database::escapeString(const std::string &s)
-{
-    #ifdef __USE_MYSQL__
-	return escapeString(s.c_str(), s.size());
-	#else
-	std::string r = std::string(s);
-	escape_string(r);
-	return r;
-	#endif
-}
-
-// probably the mysql_escape_string version should be dropped as it's less generic
-// but i'm keeping it atm
 #ifdef __USE_MYSQL__
-std::string _Database::escapeString(const char* s, unsigned long size)
+static std::string mysqlEscapeString(const char* s, unsigned long size)
 {
-	if(s == NULL)
-		return std::string("");
-
 	char* output = new char[size * 2 + 1];
 
 	mysql_escape_string(output, s, size);
@@ -339,18 +261,45 @@ std::string _Database::escapeString(const char* s, unsigned long size)
 	delete[] output;
 	return r;
 }
-#else
+#endif
+
+std::string _Database::escapeString(const std::string &s)
+{
+	return escapeString(s.c_str(), s.size());
+}
+
 std::string _Database::escapeString(const char* s, unsigned long size)
 {
 	if(s == NULL)
 		return std::string("");
 
-	std::string r = std::string(s);
-	escape_string(r);
-	return r;
-
-}
+#if defined __USE_MYSQL__ && defined __USE_SQLITE__
+	if(instance()->isSQLite())
+		return sqliteEscapeString(s, size);
+	return mysqlEscapeString(s, size);
+#elif defined __USE_MYSQL__
+	return mysqlEscapeString(s, size);
+#else
+	return sqliteEscapeString(s, size);
 #endif
+}
+
+std::string _Database::escapeBlob(const char* s, unsigned long size)
+{
+#ifdef __USE_SQLITE__
+	if(s != NULL && size > 0 && instance()->isSQLite()){
+		static const char hex[] = "0123456789ABCDEF";
+		std::string r = "X'";
+		r.reserve(size * 2 + 3);
+		for(unsigned long i = 0; i < size; ++i){
+			r += hex[(unsigned char)s[i] >> 4];
+			r += hex[(unsigned char)s[i] & 0x0F];
+		}
+		return r + "'";
+	}
+#endif
+	return "'" + escapeString(s, size) + "'";
+}
 
 DBTransaction::DBTransaction(Database* database)
 {
@@ -370,11 +319,10 @@ DBTransaction::~DBTransaction()
 bool DBTransaction::start()
 {
 	DBQuery query;
-	#ifndef __USE_SQLITE__
-	query << "START TRANSACTION;";
-	#else
-	query << "BEGIN;";
-	#endif
+	if(m_database->isSQLite())
+		query << "BEGIN;";
+	else
+		query << "START TRANSACTION;";
 	if(m_database->executeQuery(query)){
 		m_state = STATE_START;
 		return true;

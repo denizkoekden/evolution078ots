@@ -19,6 +19,7 @@
 //////////////////////////////////////////////////////////////////////
 
 #include <iostream>
+#include <vector>
 #include "databasesqlite.h"
 #include "configmanager.h"
 
@@ -33,8 +34,6 @@ DatabaseSqLite::~DatabaseSqLite()
 {
 	disconnect();
 }
-
-bool DatabaseSqLite::m_fieldnames = false;
 
 bool DatabaseSqLite::init()
 {
@@ -71,21 +70,47 @@ bool DatabaseSqLite::disconnect()
 	return false;
 }
 
+// One statement per call: unlike sqlite3_exec, trailing statements are rejected, not run.
+bool DatabaseSqLite::prepare(const std::string& query, sqlite3_stmt*& stmt)
+{
+	const char* tail = NULL;
+	stmt = NULL;
+	if(sqlite3_prepare_v2(m_handle, query.c_str(), (int)query.length(), &stmt, &tail) != SQLITE_OK){
+		std::cout << "SQLITE ERROR sqlite3_prepare: " << query << " " << sqlite3_errmsg(m_handle) << std::endl;
+		return false;
+	}
+
+	for(; tail && *tail; ++tail){
+		if(*tail != ' ' && *tail != '\t' && *tail != '\r' && *tail != '\n' && *tail != ';'){
+			std::cout << "SQLITE ERROR multiple statements: " << query << std::endl;
+			sqlite3_finalize(stmt);
+			stmt = NULL;
+			return false;
+		}
+	}
+	return true;
+}
+
 bool DatabaseSqLite::executeQuery(DBQuery &q)
 {
 	if(!m_initialized || !m_connected)
 		return false;
 
 	std::string s = q.str();
-	const char* querytext = s.c_str();
-	// Execute the query
-	if(sqlite3_exec(m_handle, querytext, 0, 0, &zErrMsg) != SQLITE_OK)
-	{
-		//throw DBError( q.getText() , DB_ERROR_QUERY );
-		std::cout << "SQLITE ERROR sqlite_exec: " << q.str() << " " << zErrMsg << std::endl;
-		sqlite3_free(zErrMsg);
+	sqlite3_stmt* stmt;
+	if(!prepare(s, stmt))
 		return false;
+
+	int rc = SQLITE_DONE;
+	if(stmt){
+		while((rc = sqlite3_step(stmt)) == SQLITE_ROW){}
+		if(rc != SQLITE_DONE)
+			std::cout << "SQLITE ERROR sqlite3_step: " << s << " " << sqlite3_errmsg(m_handle) << std::endl;
+		sqlite3_finalize(stmt);
 	}
+
+	if(rc != SQLITE_DONE)
+		return false;
 
 	// All is ok
 	q.reset();
@@ -98,19 +123,43 @@ bool DatabaseSqLite::storeQuery(DBQuery &q, DBResult &dbres)
 		return false;
 
 	std::string s = q.str();
-	const char* querytext = s.c_str();
 
 	q.reset();
-    dbres.clear();
-	// Execute the query
-	if(sqlite3_exec(m_handle, querytext, DatabaseSqLite::callback, &dbres, &zErrMsg) != SQLITE_OK)
-	{
-		//throw DBError( q.getText() , DB_ERROR_QUERY );
-		std::cout << "SQLITE ERROR sqlite_exec: " << q.str() << " " << zErrMsg << std::endl;
-		sqlite3_free(zErrMsg);
+	dbres.clear();
+
+	sqlite3_stmt* stmt;
+	if(!prepare(s, stmt) || !stmt)
+		return false;
+
+	unsigned int num_fields = (unsigned int)sqlite3_column_count(stmt);
+	for(unsigned int i = 0; i < num_fields; ++i)
+		dbres.setFieldName(std::string(sqlite3_column_name(stmt, i)), i);
+
+	std::vector<char*> values(num_fields + 1);
+	std::vector<unsigned long> lengths(num_fields + 1);
+	int rc;
+	while((rc = sqlite3_step(stmt)) == SQLITE_ROW){
+		for(unsigned int i = 0; i < num_fields; ++i){
+			if(sqlite3_column_type(stmt, i) == SQLITE_NULL){
+				values[i] = NULL;
+				lengths[i] = 0;
+			}
+			else{
+				// text before bytes: the length is that of the returned buffer, blobs keep embedded NULs
+				const unsigned char* text = sqlite3_column_text(stmt, i);
+				lengths[i] = (unsigned long)sqlite3_column_bytes(stmt, i);
+				values[i] = text ? (char*)text : (char*)"";
+			}
+		}
+		dbres.addRow(&values[0], &lengths[0], num_fields);
+	}
+
+	if(rc != SQLITE_DONE){
+		std::cout << "SQLITE ERROR sqlite3_step: " << s << " " << sqlite3_errmsg(m_handle) << std::endl;
+		sqlite3_finalize(stmt);
 		return false;
 	}
-	DatabaseSqLite::m_fieldnames = false;
+	sqlite3_finalize(stmt);
 
 	// Check if there are rows in the query
 	if(dbres.getNumRows() > 0)
@@ -143,18 +192,4 @@ bool DatabaseSqLite::commit()
 	else{
 		return false;
 	}
-}
-
-int DatabaseSqLite::callback(void *db, int num_fields, char **results, char **columnNames){
-  DBResult* dbres = (DBResult*)db;
-  if(!DatabaseSqLite::m_fieldnames){
-  for(int i=0; i<num_fields; i++){
-    //std::cout <<"'"<< std::string(columnNames[i]) <<"' : '" << results[i] <<"'\t";
-    dbres->setFieldName(std::string(columnNames[i]), i);
-  }
-  DatabaseSqLite::m_fieldnames = true;
-  }
-  //std::cout << "\n";
-  dbres->addRow(results, num_fields);
-  return 0;
 }

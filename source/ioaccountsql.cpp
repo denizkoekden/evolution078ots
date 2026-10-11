@@ -149,12 +149,9 @@ bool IOAccountSQL::saveAccount(Account account, unsigned long premiumTicks)
     query << "`premDays`='" << days << "', ";
     query << "`premEnd`='" << premiumTicks << "' ";
 
-	query << " WHERE `accno` = "<< account.accnumber
-	#ifndef __USE_SQLITE__
-	<<" LIMIT 1";
-    #else
-    ;
-    #endif
+	query << " WHERE `accno` = "<< account.accnumber;
+	if(!db->isSQLite())
+		query << " LIMIT 1";
 
     if(!db->executeQuery(query))
         return false;
