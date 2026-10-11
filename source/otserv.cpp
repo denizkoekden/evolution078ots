@@ -160,6 +160,7 @@ OTSYS_THREAD_RETURN ConnectionHandler(void *dat)
 	srand((unsigned)time(NULL));
 
 	SOCKET s = *(SOCKET*)dat;
+	delete (SOCKET*)dat;
 
 	NetworkMessage msg;
 	if(msg.ReadFromSocket(s)){
@@ -1014,7 +1015,8 @@ int main(int argc, char *argv[])
 			SOCKET s = accept(listen_socket, NULL, NULL); // accept a new connection
 
 			if(s > 0){
-				OTSYS_CREATE_THREAD(ConnectionHandler, (void*)&s);
+				// own copy per thread: `s` is overwritten by the next accept before the thread may have read it
+				OTSYS_CREATE_THREAD(ConnectionHandler, (void*)new SOCKET(s));
 			}
 			else{
 				accept_errors++;
