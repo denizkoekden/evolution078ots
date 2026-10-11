@@ -125,7 +125,7 @@ void hexdump(unsigned char *_data, int _len) {
 		
 		fprintf(stderr, " ");
 		for(i = 0; i < 16 && i < _len; i++)
-			fprintf(stderr, "%c", (_data[i] & 0x70) < 32 ? '.' : _data[i]);
+			fprintf(stderr, "%c", (_data[i] & 0x70) < 32 ? '\xB7' : _data[i]);
 		
 		fprintf(stderr, "\n");
 	}
@@ -135,14 +135,10 @@ void hexdump(unsigned char *_data, int _len) {
 char upchar(char c) {
   if (c >= 'a' && c <= 'z')
       return c - 'a' + 'A';
-  // Latin-1 / CP1252 accented lowercase -> uppercase. The archived source had
-  // these high bytes corrupted to U+FFFD (all branches collapsed to one value);
-  // this restores the original Evolution mapping. See also the project notes.
+  // the original table: Latin-1 0xE0..0xFF except 0xF7 -> 0xC0..0xDF (so y-diaeresis -> sharp s)
   unsigned char uc = (unsigned char)c;
-  if (uc >= 0xE0 && uc <= 0xFE && uc != 0xF7) // a-grave .. thorn, excluding division sign
+  if (uc >= 0xE0 && uc != 0xF7)
       return (char)(uc - 0x20);
-  if (uc == 0xFF)                             // y-diaeresis -> Y-diaeresis (CP1252 0x9F)
-      return (char)0x9F;
   return c;
 }
 
